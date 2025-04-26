@@ -6,6 +6,8 @@ services:
     container_name: adk-agent
     ports:
       - "8001:8001"
+    environment:
+      REPO_ROOT: /repos
     env_file:
       - .env
     stdin_open: true 
