@@ -3,7 +3,7 @@ import logging
 from dotenv import load_dotenv
 from google.adk.cli.fast_api import get_fast_api_app
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 load_dotenv()

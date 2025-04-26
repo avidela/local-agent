@@ -7,10 +7,12 @@ services:
     ports:
       - "8001:8001"
     environment:
+      GOOGLE_GENAI_USE_VERTEXAI: FALSE
+      AGENT_DIR: agents/adk
       REPO_ROOT: /repos
     env_file:
       - .env
     stdin_open: true 
     tty: true
     volumes:
-      - ~/Solutions:/repos
+      - ~/Solutions:/repos #UPDATE THIS TO YOUR LOCAL DIRECTORIES 

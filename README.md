@@ -4,16 +4,17 @@ A multi-agent system built with Google's Agent Development Kit (ADK), featuring 
 
 ## Quick Start with Docker
 
-1. Configure your API key in `docker.env`:
+1. Create a `.env` file in the `/repos/local-agent` directory with the following content:
    ```
    GOOGLE_GENAI_USE_VERTEXAI=FALSE
    GOOGLE_API_KEY=YOUR_API_KEY_HERE
    ```
+   Replace `YOUR_API_KEY_HERE` with your actual Google API key.
 
 2. Build and run with Docker Compose:
    ```bash
-   docker-compose build
-   docker-compose up
+   docker compose build
+   docker compose up
    ```
 
 ## Local Development
@@ -33,7 +34,7 @@ A multi-agent system built with Google's Agent Development Kit (ADK), featuring 
    # On Linux/Mac:
    source .venv/bin/activate
    # On Windows:
-   .venv\Scripts\activate
+   .venv\\Scripts\\activate
    ```
    
    For development purposes, you can also install dev dependencies:
@@ -44,7 +45,7 @@ A multi-agent system built with Google's Agent Development Kit (ADK), featuring 
 4. Configure environment variables in `.env`
 5. Run the application:
    ```bash
-   uvicorn api:app --reload --port 8001
+   uv run uvicorn api:app --reload --port 8001
    ```
    
 ## Updating Dependencies
@@ -65,8 +66,7 @@ When you need to add or update dependencies:
 ## Documentation
 
 See the `docs/` directory for detailed documentation:
-- [Project Overview](docs/README.md)
-- [Docker Setup](docs/docker-setup.md)
+- [Project Overview](docs/overview.md)
 
 ## License
 
