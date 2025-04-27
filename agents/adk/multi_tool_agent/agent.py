@@ -13,10 +13,11 @@ from langchain_community.tools.file_management.move import MoveFileTool
 from langchain_community.tools.file_management.delete import DeleteFileTool
 from .sub_agents import researcher_agent, developer_agent
 from .prompt import local_agent_prompt
-# Import the new grep_file function
 from .tools.filesystem.grep_tool import grep_file
-# Import the new find_files function
 from .tools.filesystem.find_tool import find_files
+from .tools.filesystem.diff_tool import diff_files
+from .callbacks.model_handlers import handle_before_model_callback
+
 
 root_dir_raw = os.getenv("REPO_ROOT", os.getcwd())
 root_dir = os.path.expanduser(root_dir_raw)
@@ -42,10 +43,10 @@ root_agent = Agent(
         LangchainTool(tool=CopyFileTool(root_dir=root_dir)),
         LangchainTool(tool=MoveFileTool(root_dir=root_dir)),
         LangchainTool(tool=DeleteFileTool(root_dir=root_dir)),
-        # Add the grep tool using FunctionTool.
         FunctionTool(func=grep_file),
-        # Add the new find_files tool using FunctionTool.
-        FunctionTool(func=find_files)
+        FunctionTool(func=find_files),
+        FunctionTool(func=diff_files)
     ],
+    # before_model_callback=handle_before_model_callback, # Register the generic callback here
     generate_content_config= GenerateContentConfig(temperature=0.10)
 )
