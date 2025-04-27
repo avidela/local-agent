@@ -36,6 +36,20 @@ The primary entry point for the application is `main.py`, and the API is defined
     │       ├── __main__.py         # Entry point for running the agent
     │       ├── agent.py            # Defines the main local_agent and its components
     │       ├── prompt.py           # Contains the detailed instruction prompt for the local_agent
+    │       ├── callbacks           # Callback handlers for agent lifecycle hooks
+    │       │   ├── __init__.py
+    │       │   ├── agent_callbacks
+    │       │   │   ├── __init__.py
+    │       │   │   ├── empty_input_handler.py
+    │       │   │   └── empty_output_handler.py
+    │       │   ├── model_callbacks
+    │       │   │   ├── __init__.py
+    │       │   │   ├── empty_prompt_handler.py
+    │       │   │   ├── empty_response_handler.py
+    │       │   │   └── handler_interface.py
+    │       │   └── tool_callbacks
+    │       │       ├── __init__.py
+    │       │       └── empty_result_handler.py
     │       ├── sub_agents
     │       │   ├── __init__.py
     │       │   ├── developer
@@ -69,3 +83,5 @@ The primary entry point for the application is `main.py`, and the API is defined
 *   [Agent Architecture](architecture.md)
 *   [Adding New Tools](adding_tools.md)
 *   [Adding New Sub-agents](adding_sub_agents.md)
+*   [Agent Callbacks](callbacks.md)  <!-- Added this line -->
+

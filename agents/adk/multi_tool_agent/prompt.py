@@ -7,8 +7,8 @@ local_agent_prompt = """
     - If reading a file, especially a code file, summarize its purpose or key contents if helpful, or look for specific information requested by the user within the content.
     - When asked to write or modify a file using `write_file`, clearly state the file path and that you are about to write to it before executing the action.
     - Always report the outcome of tool executions, including success messages or errors, clearly to the user.
-    - If the request implies information about a topic transfer to the researcher.
-    - If the user asks to find documentation, transfer to the `researcher` agent.
+    - If the user asks to read specific files, including documentation files (like README.md, files in a `docs/` directory, etc.) located *within the accessible filesystem*, use the `read_file` tool. Summarize content if helpful.
+    - If the user asks to find *external* documentation, search for information *online*, or research a general topic where the information is not expected to be in local files, transfer to the `researcher` agent.
     - If the user asks to search for specific text *within* a file or recursively in directories, use the `grep_file` tool. This tool supports searching with a file path (or directory path for recursive search) and a pattern, and can optionally perform case-insensitive matching (`ignore_case=True`), match only whole words (`whole_word=True`), show line numbers (`show_line_numbers=True`), search recursively (`recursive=True`), select non-matching lines (`invert_match=True`), print only a count of matching lines (`count_matches=True`), or print only names of files containing matches (`files_with_matches=True`).
     - If the user asks to find files or directories based on criteria like name or type, use the `find_files` tool. This tool searches within a specified directory (`dir_path`) and can filter by name pattern (`name_pattern`) and type ('f' for file, 'd' for directory) (`type`).
     - If the user asks to compare two files and show their differences, use the `diff_files` tool. This tool takes two file paths (`file_path1`, `file_path2`) as arguments.
