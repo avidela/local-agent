@@ -14,8 +14,18 @@ if not agent_dir:
     logger.warning("AGENT_DIR not found in .env file.")
     agent_dir = "agents/adk"
 
+session_db_url = os.getenv("SESSION_DB_URL")
+
+if not session_db_url:
+    logger.warning("SESSION_DB_URL not found in .env file. Using InMemorySessionService.")
+    session_db_url = ""
+
+logger.info(f"Using Session DB URL: {'InMemory' if not session_db_url else session_db_url.split('@')[0] + '@...'}") # Avoid logging full credentials
+
+
 app = get_fast_api_app(
     agent_dir=agent_dir,
+    session_db_url=session_db_url,
     allow_origins=["*"],
     web=True
 )

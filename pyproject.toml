@@ -9,6 +9,8 @@ dependencies = [
     "google-adk>=0.3.0",
     "google-generativeai>=0.8.5",
     "langchain-community>=0.3.22",
+    "psycopg2-binary>=2.9.10",
     "python-dotenv>=1.1.0",
+    "sqlalchemy>=2.0.40",
     "uvicorn>=0.34.2",
 ]
