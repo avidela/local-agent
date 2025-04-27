@@ -12,20 +12,27 @@ Here are the key environment variables and their descriptions:
 
 *   `VERTEXAI_LOCATION`: The Google Cloud location for Vertex AI. Required when `GOOGLE_GENAI_USE_VERTEXAI` is set to `TRUE`.
 
-*   `REPO_ROOT`: The absolute path to the root directory the agent should have access to for file system operations. In the recommended Docker setup, this is typically handled by Docker volume mapping and might not need to be explicitly set in the `.env` file. For local development, set this to the directory containing your projects.
+*   `REPO_ROOT`: The absolute path to the root directory the agent should have access to for file system operations.
+    *   The path can use `~` for the user's home directory (it will be expanded).
+    *   If not set, the Langchain file system tools (`ListDirectoryTool`, `ReadFileTool`, etc.) default to the current working directory where the agent was started.
+    *   However, the custom tool wrappers (`grep_file`, `find_files`, `diff_files`) default to `/repos` if `REPO_ROOT` is not set.
+    *   In the recommended Docker setup, this is typically handled by Docker volume mapping (mounting a host directory to `/repos` in the container), and `REPO_ROOT` might not need to be explicitly set in the `.env` file unless you want to override the default `/repos` path *within* the container.
+    *   For local development, set this to the directory containing your projects (e.g., `/home/user/projects` or `~/Solutions`).
 
-*   `DATABASE_URL`: (If using a database for session storage) The URL for connecting to the database. The format depends on the database type (e.g., `postgresql://user:password@host:port/database`).
+*   `AGENT_DIR`: Specifies the directory containing the agent definitions that `get_fast_api_app` should load. Defaults to `agents/adk` if not set.
 
-*   `SESSION_TYPE`: (If using session storage) Specifies the type of session storage to use (e.g., `memory`, `database`).
+*   `SESSION_DB_URL`: The database connection string for storing session history. If not set or empty, sessions will be stored in memory only (using `InMemorySessionService`). Example format: `postgresql://user:password@host:port/database`.
 
-*   `ARTIFACT_TYPE`: (If using artifact storage) Specifies the type of artifact storage to use (e.g., `memory`, `gcs`).
+*   `SESSION_TYPE`: (Potentially used by ADK, check ADK docs) Specifies the type of session storage to use (e.g., `memory`, `database`). Often inferred from `SESSION_DB_URL`.
 
-*   `GCS_BUCKET_NAME`: (If using GCS for artifact storage) The name of the Google Cloud Storage bucket to use for storing artifacts.
+*   `ARTIFACT_TYPE`: (Potentially used by ADK, check ADK docs) Specifies the type of artifact storage to use (e.g., `memory`, `gcs`).
 
-*   `AGENT_MODEL`: (Optional) Specifies the model to use for the main `local_agent`. If not set, a default model is used.
+*   `GCS_BUCKET_NAME`: (Potentially used by ADK, check ADK docs) The name of the Google Cloud Storage bucket to use if `ARTIFACT_TYPE` is set to `gcs`.
 
-*   `RESEARCHER_MODEL`: (Optional) Specifies the model to use for the `researcher` sub-agent. If not set, a default model is used.
+*   `AGENT_MODEL`: (Optional) Specifies the model name (e.g., `gemini-2.5-pro-exp-03-25`) to use for the main `local_agent`. Overrides the default specified in `agent.py`.
 
-*   `DEVELOPER_MODEL`: (Optional) Specifies the model to use for the `developer` sub-agent. If not set, a default model is used.
+*   `RESEARCHER_MODEL`: (Optional) Specifies the model name to use for the `researcher` sub-agent. Overrides the default specified in its `agent.py`.
 
-This list may not be exhaustive, and additional environment variables might be introduced for new features or tools. Refer to the specific tool or agent documentation for any tool-specific configuration options.
+*   `DEVELOPER_MODEL`: (Optional) Specifies the model name to use for the `developer` sub-agent. Overrides the default specified in its `agent.py`.
+
+This list may not be exhaustive, and additional environment variables might be introduced for new features or tools. Refer to the specific tool or agent documentation for any tool-specific configuration options, and consult the Google Agent Development Kit (ADK) documentation for framework-level variables.

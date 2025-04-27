@@ -1,6 +1,6 @@
 # Project Overview
 
-The Local Agent is a multi-agent system built using Google's Agent Development Kit (ADK). It is designed to assist with software development tasks by delegating to specialized sub-agents, such as a researcher and a developer.
+The Local Agent is a multi-agent system built using Google's Agent Development Kit (ADK) ([https://github.com/google/adk-python](https://github.com/google/adk-python)). It is designed to assist with software development tasks by delegating to specialized sub-agents, such as a researcher and a developer.
 
 The system can be run locally using Docker Compose, which sets up a container for the local agent and maps the local `~/Solutions` directory to `/repos` within the container. This allows the agent to access and manipulate files in the specified repository directory.
 
@@ -81,7 +81,9 @@ The primary entry point for the application is `main.py`, and the API is defined
 *   [Setup and Installation](setup.md)
 *   [Configuration](configuration.md)
 *   [Agent Architecture](architecture.md)
+*   [API Documentation](api.md)
+*   [Agent Tools](tools.md) <!-- Added this line -->
 *   [Adding New Tools](adding_tools.md)
 *   [Adding New Sub-agents](adding_sub_agents.md)
-*   [Agent Callbacks](callbacks.md)  <!-- Added this line -->
+*   [Agent Callbacks](callbacks.md)
 
