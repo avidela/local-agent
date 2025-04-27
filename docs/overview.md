@@ -85,7 +85,8 @@ The primary entry point for the application is `main.py`, and the API is defined
     ├── adding_tools.md
     ├── adding_sub_agents.md
     └── plans/                # Directory for planned refactors/work
-        └── 00_refactor_codebase_structure.md
+        ├── 00_refactor_codebase_structure.md
+        └── 00_refactor_agent_prompt.md # Prompt for agent execution
 ```
 
 ## Detailed Documentation
