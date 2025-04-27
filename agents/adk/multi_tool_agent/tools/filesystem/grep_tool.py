@@ -2,14 +2,16 @@
 # This file contains a function to use the system's grep command via subprocess.
 
 import subprocess
-import os # Import the os module for debugging info
+import os # Import the os module
+from typing import Optional # Import Optional for type hints if needed later
 
 def grep_file(file_path: str, pattern: str, ignore_case: bool = False, whole_word: bool = False, show_line_numbers: bool = False, recursive: bool = False, invert_match: bool = False, count_matches: bool = False, files_with_matches: bool = False) -> dict:
     """
     Uses the system's grep command to search for a pattern in a file(s) with optional flags.
+    Interprets file_path relative to REPO_ROOT (defaulting to /repos).
 
     Args:
-        file_path: The path to the file or directory to search in.
+        file_path: The path to the file or directory to search in, relative to the repository root.
         pattern: The string pattern to search for.
         ignore_case: If True, perform case-insensitive matching (-i flag).
         whole_word: If True, match only whole words (-w flag).
@@ -32,12 +34,13 @@ def grep_file(file_path: str, pattern: str, ignore_case: bool = False, whole_wor
         except Exception as listdir_e:
             debug_info['subprocess_listdir_error'] = str(listdir_e)
 
-        # Adjust file_path for the subprocess environment if it starts with 'local-agent/'
-        # This assumes the subprocess cwd is the same as the local-agent root.
-        adjusted_file_path = file_path
-        if adjusted_file_path.startswith('local-agent/'):
-            adjusted_file_path = adjusted_file_path[len('local-agent/'):]
-        debug_info['adjusted_file_path'] = adjusted_file_path
+        # Get the repository root from the environment variable, defaulting to /repos
+        repo_root = os.getenv("REPO_ROOT", "/repos")
+        debug_info['repo_root'] = repo_root
+
+        # Construct the full path to search by joining repo_root and file_path
+        full_path = os.path.join(repo_root, file_path)
+        debug_info['full_path_searched'] = full_path
 
         # Construct the grep command with all optional flags
         command = ["grep"]
@@ -56,43 +59,42 @@ def grep_file(file_path: str, pattern: str, ignore_case: bool = False, whole_wor
         if files_with_matches:
             command.append("-l")
 
-        # Add the pattern and file path
-        command.extend([pattern, adjusted_file_path])
+        # Add the pattern and the full path
+        command.extend([pattern, full_path])
         debug_info['command_executed'] = " ".join(command) # For debugging
 
-        # Execute the grep command, explicitly setting the current working directory
-        # We will keep cwd='.' as it seems to be the /app directory
-        result = subprocess.run(command, capture_output=True, text=True, check=True, cwd='.')
+        # Execute the grep command from the root directory
+        # Using cwd='/' ensures paths are interpreted correctly
+        result = subprocess.run(command, capture_output=True, text=True, check=False, cwd='/') # Use check=False to handle grep's exit codes manually
 
-        # If check=True, this part is only reached if returncode is 0 (matches found or no matches with -v)
-        return {'status': 'success', 'output': result.stdout.strip(), 'debug': debug_info}
+        debug_info['return_code'] = result.returncode
+        debug_info['stderr'] = result.stderr.strip()
+        debug_info['stdout'] = result.stdout.strip() # Capture stdout even if returncode is non-zero
 
-    except subprocess.CalledProcessError as e:
-        # This handles cases where grep exits with a non-zero status.
-        # returncode 1 means no matches were found (unless -v is used).
-        # returncode > 1 means an actual error occurred (e.g., file not found).
-        debug_info['return_code'] = e.returncode
-        debug_info['stderr'] = e.stderr.strip()
+        # Handle grep's exit codes:
+        # 0: One or more lines were selected.
+        # 1: No lines were selected.
+        # >1: An error occurred.
 
-        # Grep returns 1 for no matches. If -v is used, return 0 for no matches.
-        # We should consider returncode 1 as a successful outcome if no matches were expected or found.
-        if e.returncode == 1 and not invert_match:
-             # No matches found and -v was not used
-             return {'status': 'success', 'output': f"No lines found matching the pattern '{pattern}' in {file_path}.", 'debug': debug_info}
-        elif e.returncode == 0 and invert_match:
-             # No non-matching lines found when -v was used
-             return {'status': 'success', 'output': f"All lines matched the pattern '{pattern}' in {file_path}.", 'debug': debug_info}
-        elif e.returncode == 1 and invert_match:
-             # Some non-matching lines found when -v was used (grep returns 1 if no lines selected)
-             # This case might need refinement based on exact grep -v behavior and desired output
-             # For now, let's treat it as success with output if stderr is empty, otherwise error
-             if e.stderr.strip() == "":
-                  return {'status': 'success', 'output': result.stdout.strip(), 'debug': debug_info}
-             else:
-                  return {'status': 'error', 'message': f"Error executing grep command for {file_path}: {e.stderr.strip()}", 'debug': debug_info}
+        if result.returncode == 0:
+            # Success, matches found (or all lines matched with -v)
+            return {'status': 'success', 'output': result.stdout.strip(), 'debug': debug_info}
+        elif result.returncode == 1:
+            # No lines selected - this is not an error, just means no matches.
+            if invert_match:
+                 # -v was used, and no lines were selected (meaning all lines matched the pattern)
+                 return {'status': 'success', 'output': f"All lines matched the pattern '{pattern}' in {file_path}.", 'debug': debug_info}
+            else:
+                 # No -v, and no lines were selected (meaning no lines matched the pattern)
+                 return {'status': 'success', 'output': f"No lines found matching the pattern '{pattern}' in {file_path}.", 'debug': debug_info}
         else:
-            # Other non-zero exit codes indicate an error
-            return {'status': 'error', 'message': f"Error executing grep command for {file_path}: {e.stderr.strip()}", 'debug': debug_info}
+            # An actual error occurred (e.g., file not found, permissions)
+            error_message = f"Error executing grep command for {file_path}: {result.stderr.strip()}"
+            # Add specific message for file not found if stderr indicates it
+            if "No such file or directory" in result.stderr:
+                 error_message = f"Error: File or directory not found at specified path: {file_path} (resolved to {full_path})"
+            return {'status': 'error', 'message': error_message, 'debug': debug_info}
+
     except FileNotFoundError:
         # Handle case where the grep command itself is not found
         debug_info['error_type'] = 'FileNotFoundError'
@@ -103,7 +105,4 @@ def grep_file(file_path: str, pattern: str, ignore_case: bool = False, whole_wor
         debug_info['exception_message'] = str(e)
         return {'status': 'error', 'message': f"An internal error occurred while trying to grep {file_path}: {e}", 'debug': debug_info}
 
-# Note: This function needs to be integrated into the agent's main logic
-# to be callable based on user requests. This involves modifying agent.py
-# or a similar file to recognize grep requests and call this function.
-# We also need to update the prompt to tell the agent about this new capability.
+# Note: Integration into the agent's main logic is assumed to be handled elsewhere.
