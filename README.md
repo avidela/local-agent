@@ -34,7 +34,7 @@ A multi-agent system built with Google's Agent Development Kit (ADK), featuring 
 
     ```bash
     docker compose build
-    docker compose up
+    docker compose up -d
     ```
 
 ## Local Development
