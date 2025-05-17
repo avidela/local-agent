@@ -37,8 +37,9 @@ root_dir = os.path.expanduser(root_dir_raw)
 
 root_agent = Agent(
     name="local_agent",
-    # model="gemini-2.0-flash-exp",
-    model="gemini-2.5-pro-exp-03-25",
+    model="gemini-2.0-flash-exp",
+    # model="gemini-2.5-pro-preview-03-25",
+    # model="gemini-2.5-pro-exp-03-25",
     # model="gemini-2.5-flash-preview-04-17",
     instruction=local_agent_prompt,
     global_instruction=lambda ctx: (
@@ -60,11 +61,11 @@ root_agent = Agent(
         FunctionTool(func=find_files),
         FunctionTool(func=diff_files)
     ],
-    before_agent_callback=handle_before_agent_callback,
-    after_agent_callback=handle_after_agent_callback,
+    # before_agent_callback=handle_before_agent_callback,
+    # after_agent_callback=handle_after_agent_callback,
     # before_model_callback=handle_before_model_callback, # Disabled because it intercepts empty prompts during the post-tool summarization step, leading to incorrect final output.
-    after_model_callback=handle_after_model_callback,
-    before_tool_callback=handle_before_tool_callback,
-    after_tool_callback=handle_after_tool_callback,
-    generate_content_config= GenerateContentConfig(temperature=0.10)
+    # after_model_callback=handle_after_model_callback,
+    # before_tool_callback=handle_before_tool_callback,
+    # after_tool_callback=handle_after_tool_callback,
+    generate_content_config= GenerateContentConfig(temperature=0.01)
 )

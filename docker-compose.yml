@@ -1,4 +1,0 @@
-include:
-  - docker-compose-db.yml
-  - docker-compose-adk.yml
-

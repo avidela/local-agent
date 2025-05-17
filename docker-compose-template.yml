@@ -1,0 +1,10 @@
+include:
+  - docker-compose-db.yml
+
+services:
+  local-agent:
+    extends:
+      file: docker-compose-adk.yml
+      service: local-agent
+    volumes:
+      - /home/user/repos:/repos #Update this to mount your local directories
