@@ -13,7 +13,6 @@ services:
     env_file:
       - .env
     volumes:
-      - ~/Solutions:/repos #UPDATE THIS TO YOUR LOCAL DIRECTORIES 
       - type: bind
         source: ${APPDATA:-~/.config}/gcloud
         target: /root/.config/gcloud

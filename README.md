@@ -2,20 +2,40 @@
 
 A multi-agent system built with Google's Agent Development Kit (ADK), featuring specialized sub-agents for research and development tasks.
 
-## Quick Start with Docker
+## Quick Start
 
-1. Create a `.env` file in the `/repos/local-agent` directory with the following content:
+1. **Both Docker users and local developers need to create a `.env` file** in the `/repos/local-agent` directory with the following content:
    ```
    GOOGLE_GENAI_USE_VERTEXAI=FALSE
    GOOGLE_API_KEY=YOUR_API_KEY_HERE
    ```
    Replace `YOUR_API_KEY_HERE` with your actual Google API key.
 
-2. Build and run with Docker Compose:
-   ```bash
-   docker compose build
-   docker compose up
-   ```
+## Using Docker
+
+1. Copy the template Docker Compose file to `docker-compose.yml`:
+
+    ```bash
+    cp docker-compose-template.yml docker-compose.yml
+    ```
+
+2. Customize the `docker-compose.yml` file to match your local environment.  **Important:** To allow the agent to access your local directories for file system operations, you need to update the volume mount in `docker-compose.yml`. Modify the `volumes` section under the `local-agent` service to point to the desired directory on your host machine. For example:
+
+    ```yaml
+    services:
+      local-agent:
+        volumes:
+          - /path/to/your/local/directory:/repos
+    ```
+
+    Replace `/path/to/your/local/directory` with the actual path to the directory you want to share with the agent.
+
+3. Build and run with Docker Compose:
+
+    ```bash
+    docker compose build
+    docker compose up -d
+    ```
 
 ## Local Development
 

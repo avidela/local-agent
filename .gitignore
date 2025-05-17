@@ -30,3 +30,4 @@ wheels/
 env/
 venv/
 ENV/
+docker-compose.yml
