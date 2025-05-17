@@ -1,0 +1,11 @@
+services:
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80" # Map host port 3000 to container port 80
+    depends_on:
+      - local-agent # Ensure the agent is running before the web app
+    environment:
+      - REACT_APP_API_BASE_URL=http://localhost:8001 # Or the correct URL for your API

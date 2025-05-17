@@ -1,5 +1,6 @@
 include:
   - docker-compose-db.yml
+  - docker-compose-web.yml
 
 services:
   local-agent:
