@@ -27,7 +27,6 @@ wheels/
 # Environment files
 .env
 .venv
-env/
 venv/
 ENV/
 docker-compose.yml

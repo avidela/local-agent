@@ -4,12 +4,20 @@ A multi-agent system built with Google's Agent Development Kit (ADK), featuring 
 
 ## Quick Start
 
-1. **Both Docker users and local developers need to create a `.env` file** in the `/repos/local-agent` directory with the following content:
+1. **Both Docker users and local developers need to create a `.env` file**. Copy the `env/.env.template` file to `.env` in the root directory (`/repos/local-agent`) and replace `YOUR_API_KEY_HERE` with your actual Google API key.
+   ```bash
+   cp env/.env.template .env
    ```
-   GOOGLE_GENAI_USE_VERTEXAI=FALSE
-   GOOGLE_API_KEY=YOUR_API_KEY_HERE
+   
+   **Using Vertex AI (Optional):**
+   If you prefer to use Vertex AI instead of a Google API Key, modify your `.env` file as follows:
    ```
-   Replace `YOUR_API_KEY_HERE` with your actual Google API key.
+   GOOGLE_GENAI_USE_VERTEXAI=TRUE
+   GOOGLE_API_KEY=
+   GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID # UNCOMMENT AND REPLACE WITH YOUR PROJECT ID
+   GOOGLE_CLOUD_LOCATION=LOCATION # UNCOMMENT AND REPLACE WITH YOUR PROJECT LOCATION (e.g., us-central1)
+   ```
+   Ensure you uncomment and replace `YOUR_PROJECT_ID` and `LOCATION` with your specific Google Cloud project details.
 
 ## Using Docker
 
