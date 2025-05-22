@@ -8,6 +8,8 @@ __pycache__/
 *$py.class
 *.so
 .Python
+.venv/
+venv/
 env/
 build/
 develop-eggs/
