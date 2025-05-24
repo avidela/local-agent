@@ -18,6 +18,25 @@
             ],
             "cwd": "${workspaceFolder}",
             "jinja": true
+        },
+        {
+            "name": "Python Debugger: Streamlit Frontend",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run",
+                "apps/frontends/streamlit/app.py",
+                "--server.port",
+                "8501",
+                "--server.address",
+                "0.0.0.0"
+            ],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "ADK_BACKEND_URL": "http://localhost:8001"
+            },
+            "jinja": true
         }
     ]
 }

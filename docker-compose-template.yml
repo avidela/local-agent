@@ -8,3 +8,10 @@ services:
       service: local-adk-agent
     volumes:
       - /home/user/repos:/repos #Update this to mount your local directories
+
+  streamlit-frontend:
+    extends:
+      file: docker-compose-streamlit.yml
+      service: streamlit-frontend
+    volumes:
+      - ./apps/frontends/streamlit:/app # Mount the Streamlit application code
