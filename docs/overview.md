@@ -28,56 +28,60 @@ The primary entry point for the application is `main.py`, and the API is defined
 ├── .gitignore
 ├── .env
 ├── apps/
-│   └── backends/
-│       └── adk/
-│           ├── Dockerfile
-│           ├── api.py
-│           ├── .dockerignore
-│           ├── agents/
-│           │   ├── multi_tool_agent/
-│           │   │   ├── __init__.py
-│           │   │   ├── __main__.py         # Entry point for running the agent
-│           │   │   ├── agent.py            # Defines the main local_agent and its components
-│           │   │   ├── prompt.py           # Contains the detailed instruction prompt for the local_agent
-│           │   │   ├── callbacks/          # Callback handlers for agent lifecycle hooks
-│           │   │   │   ├── __init__.py
-│           │   │   │   ├── agent_callbacks/
-│           │   │   │   │   ├── __init__.py
-│           │   │   │   │   ├── empty_input_handler.py
-│           │   │   │   │   └── empty_output_handler.py
-│           │   │   │   ├── model_callbacks/
-│           │   │   │   │   ├── __init__.py
-│           │   │   │   │   ├── empty_prompt_handler.py
-│           │   │   │   │   ├── empty_response_handler.py
-│           │   │   │   │   └── handler_interface.py
-│           │   │   │   └── tool_callbacks/
-│           │   │   │       ├── __init__.py
-│           │   │   │       └── empty_result_handler.py
-│           │   │   ├── sub_agents/
-│           │   │   │   ├── __init__.py
-│           │   │   │   ├── developer/
-│           │   │   │   │   ├── __init__.py
-│           │   │   │   │   ├── agent.py    # Defines the developer sub-agent
-│           │   │   │   │   └── prompt.py
-│           │   │   │   └── researcher/
-│           │   │   │       ├── __init__.py
-│           │   │   │       ├── agent.py    # Defines the researcher sub-agent
-│           │   │   │       └── prompt.py
-│           │   │   └── tools/
-│           │   │       ├── __init__.py
-│           │   │       ├── filesystem/
-│           │   │       │   ├── __init__.py
-│           │   │       │   ├── diff_tool.py  # Wrapper for the system's diff command
-│           │   │       │   ├── find_tool.py  # Wrapper for the system's find command
-│           │   │       │   └── grep_tool.py  # Wrapper for the system's grep command
-│           │   │       ├── example/
-│           │   │       │   ├── __init__.py
-│           │   │       │   ├── time.py
-│           │   │       │   └── weather.py
-│           │   │       └── search_agent_tool.py # Handles search-related tasks using Google Search
-│           └── oauth_calendar_agent/
-│               ├── __init__.py
-│               └── agent.py
+│   ├── backends/
+│   │   └── adk/
+│   │       ├── Dockerfile
+│   │       ├── api.py
+│   │       ├── .dockerignore
+│   │       ├── agents/
+│   │       │   ├── multi_tool_agent/
+│   │       │   │   ├── __init__.py
+│   │       │   │   ├── __main__.py         # Entry point for running the agent
+│   │       │   │   ├── agent.py            # Defines the main local_agent and its components
+│   │       │   │   ├── prompt.py           # Contains the detailed instruction prompt for the local_agent
+│   │       │   │   ├── callbacks/          # Callback handlers for agent lifecycle hooks
+│   │       │   │   │   ├── __init__.py
+│   │       │   │   │   ├── agent_callbacks/
+│   │       │   │   │   │   ├── __init__.py
+│   │       │   │   │   │   ├── empty_input_handler.py
+│   │       │   │   │   │   └── empty_output_handler.py
+│   │       │   │   │   ├── model_callbacks/
+│   │       │   │   │   │   ├── __init__.py
+│   │       │   │   │   │   ├── empty_prompt_handler.py
+│   │       │   │   │   │   ├── empty_response_handler.py
+│   │       │   │   │   │   └── handler_interface.py
+│   │       │   │   │   └── tool_callbacks/
+│   │       │   │   │       ├── __init__.py
+│   │       │   │   │       └── empty_result_handler.py
+│   │       │   │   ├── sub_agents/
+│   │       │   │   │   ├── __init__.py
+│   │       │   │   │   ├── developer/
+│   │       │   │   │   │   ├── __init__.py
+│   │       │   │   │   │   ├── agent.py    # Defines the developer sub-agent
+│   │       │   │   │   │   └── prompt.py
+│   │       │   │   │   └── researcher/
+│   │       │   │   │       ├── __init__.py
+│   │       │   │   │       ├── agent.py    # Defines the researcher sub-agent
+│   │       │   │   │       └── prompt.py
+│   │       │   │   └── tools/
+│   │       │   │       ├── __init__.py
+│   │       │   │       ├── filesystem/
+│   │       │   │       │   ├── __init__.py
+│   │       │   │       │   ├── diff_tool.py  # Wrapper for the system's diff command
+│   │       │   │       │   ├── find_tool.py  # Wrapper for the system's find command
+│   │       │   │       │   └── grep_tool.py  # Wrapper for the system's grep command
+│   │       │   │       ├── example/
+│   │       │   │       │   ├── __init__.py
+│   │       │   │       │   ├── time.py
+│   │       │   │       │   └── weather.py
+│   │       │   │       └── search_agent_tool.py # Handles search-related tasks using Google Search
+│   │       └── oauth_calendar_agent/
+│   │           ├── __init__.py
+│   │           └── agent.py
+│   └── frontends/
+│       └── streamlit/
+│           ├── app.py
+│           └── Dockerfile
 └── docs/                     # Documentation files
     ├── overview.md           # This file
     ├── setup.md

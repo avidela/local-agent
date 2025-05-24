@@ -12,12 +12,20 @@ When the API is running, you can access interactive documentation (provided by F
 
 This interface allows you to explore all available endpoints, view their request/response schemas, and even try sending requests directly from your browser.
 
-## Web UI
+## Web UI (Legacy)
 
 A simple web chat interface is also enabled by default (`web=True` in `api.py`) and can be accessed at the root URL or `/dev-ui`:
 
 [http://localhost:8001/](http://localhost:8001/)
 [http://localhost:8001/dev-ui](http://localhost:8001/dev-ui)
+
+## Streamlit Frontend
+
+A Streamlit-based frontend is available to interact with the ADK backend. This application runs as a separate service and connects to the ADK API.
+
+*   **Location:** `apps/frontends/streamlit/`
+*   **Access:** When running via Docker Compose, the Streamlit UI is typically available at `http://localhost:8501`.
+*   **Configuration:** The Streamlit application uses the `ADK_BACKEND_URL` environment variable to determine the ADK API endpoint. When running with Docker Compose, this is automatically set to `http://local-adk-agent:8001`. For local development outside Docker, you might need to set this environment variable in your `.env` file.
 
 ## Core Interaction
 

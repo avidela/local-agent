@@ -85,10 +85,10 @@ If you prefer to run the agent directly on your system using a Python virtual en
 
 4.  Make sure you have configured the `.env` file as described above. For local development, you might need to explicitly set the `REPO_ROOT` environment variable in your `.env` file to the directory containing the projects you want the agent to access.
 
-5.  Run the FastAPI application using uvicorn:
+5.  Run the FastAPI application using uvicorn (from the root of the repository):
 
     ```bash
-    uv run uvicorn api:app --reload --port 8001
+    uv run uvicorn apps.backends.adk.api:app --reload --port 8001
     ```
 
     The `--reload` flag is useful during development as it will restart the server whenever code changes are detected.
