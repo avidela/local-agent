@@ -11,11 +11,12 @@
             "request": "launch",
             "module": "uvicorn",
             "args": [
-                "api:app",
+                "apps.backends.adk.api:app",
                 "--reload",
                 "--port",
-                "8001"
+                "8002"
             ],
+            "cwd": "${workspaceFolder}",
             "jinja": true
         }
     ]

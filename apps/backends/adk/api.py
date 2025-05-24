@@ -12,7 +12,7 @@ agent_dir = os.getenv("AGENT_DIR")
 
 if not agent_dir:
     logger.warning("AGENT_DIR not found in .env file.")
-    agent_dir = "agents/adk"
+    agent_dir = "apps/backends/adk/agents"
 else:
     logger.info(f"AGENT_DIR:{agent_dir}")
 
