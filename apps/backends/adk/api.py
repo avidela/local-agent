@@ -13,6 +13,8 @@ agent_dir = os.getenv("AGENT_DIR")
 if not agent_dir:
     logger.warning("AGENT_DIR not found in .env file.")
     agent_dir = "agents/adk"
+else:
+    logger.info(f"AGENT_DIR:{agent_dir}")
 
 session_db_url = os.getenv("SESSION_DB_URL")
 

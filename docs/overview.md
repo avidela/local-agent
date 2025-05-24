@@ -22,7 +22,6 @@ The primary entry point for the application is `main.py`, and the API is defined
 ├── docker-compose-adk.yml
 ├── docker-compose-db.yml
 ├── docker-compose.yml
-├── entrypoint.sh
 ├── main.py
 ├── pyproject.toml
 ├── uv.lock

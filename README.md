@@ -31,7 +31,7 @@ A multi-agent system built with Google's Agent Development Kit (ADK), featuring 
 
     ```yaml
     services:
-      local-agent:
+      local-adk-agent:
         volumes:
           - /path/to/your/local/directory:/repos
     ```

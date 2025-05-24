@@ -1,14 +1,14 @@
 services:
-  local-agent:
+  local-adk-agent:
     build:
-      context: .
+      context: apps/backends/adk
       dockerfile: Dockerfile
     container_name: adk-agent
     ports:
       - "8001:8001"
     environment:
       SESSION_DB_URL: postgresql+psycopg2://adk_user:adk_password@db:5432/adk_db
-      AGENT_DIR: agents/adk
+      AGENT_DIR: agents
       REPO_ROOT: /repos
     env_file:
       - .env
