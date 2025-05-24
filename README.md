@@ -73,7 +73,7 @@ A multi-agent system built with Google's Agent Development Kit (ADK), featuring 
 4. Configure environment variables in `.env`
 5. Run the application:
    ```bash
-   uv run uvicorn api:app --reload --port 8001
+   uv run uvicorn apps.backends.adk.api:app --reload --port 8001
    ```
    
 ## Updating Dependencies
