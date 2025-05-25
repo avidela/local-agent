@@ -26,7 +26,7 @@
             "module": "streamlit",
             "args": [
                 "run",
-                "apps/frontends/streamlit/app.py",
+                "apps/frontends/streamlit/src/app.py",
                 "--server.port",
                 "8501",
                 "--server.address",
@@ -34,6 +34,7 @@
             ],
             "cwd": "${workspaceFolder}",
             "env": {
+                "PYTHONPATH": "${workspaceFolder}/apps/frontends/streamlit",
                 "ADK_BACKEND_URL": "http://localhost:8001"
             },
             "jinja": true
