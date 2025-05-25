@@ -11,11 +11,32 @@
             "request": "launch",
             "module": "uvicorn",
             "args": [
-                "api:app",
+                "apps.backends.adk.api:app",
                 "--reload",
                 "--port",
-                "8001"
+                "8002"
             ],
+            "cwd": "${workspaceFolder}",
+            "jinja": true
+        },
+        {
+            "name": "Python Debugger: Streamlit Frontend",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "streamlit",
+            "args": [
+                "run",
+                "apps/frontends/streamlit/src/app.py",
+                "--server.port",
+                "8501",
+                "--server.address",
+                "0.0.0.0"
+            ],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/apps/frontends/streamlit",
+                "ADK_BACKEND_URL": "http://localhost:8001"
+            },
             "jinja": true
         }
     ]
