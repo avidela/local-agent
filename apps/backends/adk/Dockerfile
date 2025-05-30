@@ -9,8 +9,8 @@ WORKDIR /app
 # Copy only the necessary dependency files
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies using uv
-RUN uv sync --locked
+# Install dependencies using uv (without --locked flag to allow updates)
+RUN uv sync
 
 # Stage 2: Final image
 FROM python:3.13-alpine
