@@ -8,6 +8,10 @@ services:
       service: local-adk-agent
     volumes:
       - /home/user/repos:/repos #Update this to mount your local directories
+    environment:
+      GOOGLE_GENAI_USE_VERTEXAI: "TRUE"
+      GOOGLE_CLOUD_PROJECT: ds-staff-gen-ai-prd-955b
+      GOOGLE_CLOUD_LOCATION: us-central1
 
   streamlit-frontend:
     extends:

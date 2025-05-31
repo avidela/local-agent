@@ -29,7 +29,7 @@ Here are the key environment variables and their descriptions:
 
 *   `GCS_BUCKET_NAME`: (Potentially used by ADK, check ADK docs) The name of the Google Cloud Storage bucket to use if `ARTIFACT_TYPE` is set to `gcs`.
 
-*   `AGENT_MODEL`: (Optional) Specifies the model name (e.g., `gemini-2.5-pro-exp-03-25`) to use for the main `local_agent`. Overrides the default specified in `agent.py`.
+*   `AGENT_MODEL`: (Optional) Specifies the model name (e.g., `gemini-2.0-flash-exp`) to use for the main `local_agent`. Overrides the default specified in `agent.py`.
 
 *   `RESEARCHER_MODEL`: (Optional) Specifies the model name to use for the `researcher` sub-agent. Overrides the default specified in its `agent.py`.
 

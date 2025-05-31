@@ -6,7 +6,7 @@ from .prompt import INSTRUCTION_PROMPT
 
 root_agent = Agent(
     name="developer",
-    model="gemini-2.5-pro-exp-03-25",
+    model="gemini-2.0-flash-exp",
     instruction= INSTRUCTION_PROMPT,
     tools=[],
     generate_content_config= GenerateContentConfig(temperature=0.10),

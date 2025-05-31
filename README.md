@@ -56,13 +56,15 @@ A multi-agent system built with Google's Agent Development Kit (ADK), featuring 
    ```bash
    # Create a virtual environment and sync dependencies from lock file
    uv venv
-   uv sync
    
    # Activate the virtual environment
    # On Linux/Mac:
    source .venv/bin/activate
    # On Windows:
    .venv\\Scripts\\activate
+
+   # install all dependencies
+   uv sync
    ```
    
    For development purposes, you can also install dev dependencies:
@@ -72,24 +74,69 @@ A multi-agent system built with Google's Agent Development Kit (ADK), featuring 
    
 4. Configure environment variables in `.env`
 5. Run the application:
+
+   For the ADK backend:
    ```bash
+   # From the root directory
    uv run uvicorn apps.backends.adk.api:app --reload --port 8001
+   
+   # Or navigate to the ADK directory and run
+   cd apps/backends/adk
+   uv run uvicorn api:app --reload --port 8001
    ```
    
+   For the Streamlit frontend:
+   ```bash
+   # From the root directory
+   uv run streamlit run apps/frontends/streamlit/main.py
+   
+   # Or navigate to the Streamlit directory and run
+   cd apps/frontends/streamlit
+   uv run streamlit run main.py
+   ```
+   
+## Project Structure
+
+This project uses UV workspaces to isolate dependencies for different components:
+
+- **Root workspace**: Contains shared dependencies and workspace configuration
+- **ADK backend**: Located in `apps/backends/adk/` with its own dependencies
+- **Streamlit frontend**: Located in `apps/frontends/streamlit/` with its own dependencies
+
 ## Updating Dependencies
 
 When you need to add or update dependencies:
 
-1. Edit `pyproject.toml` to add or modify dependencies
+### For the root workspace:
+
+1. Edit the root `pyproject.toml` to add or modify shared dependencies
 2. Update the lock file:
    ```bash
    uv lock
    ```
 3. Update your environment:
    ```bash
+   # To sync only the root workspace
+   uv sync
+   
+   # To sync all workspaces at once
+   uv sync --all-packages
+   ```
+
+### For a specific workspace (ADK or Streamlit):
+
+1. Navigate to the workspace directory (e.g., `apps/backends/adk/` or `apps/frontends/streamlit/`)
+2. Edit the workspace's `pyproject.toml` file
+3. Update the workspace's lock file:
+   ```bash
+   uv lock
+   ```
+4. Update the workspace's dependencies:
+   ```bash
    uv sync
    ```
-4. Commit both pyproject.toml and uv.lock to version control
+
+Always commit both pyproject.toml and uv.lock files to version control.
 
 ## Documentation
 

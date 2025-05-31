@@ -1,15 +1,18 @@
 services:
   local-adk-agent:
     build:
-      context: .
-      dockerfile: apps/backends/adk/Dockerfile
+      context: ./apps/backends/adk
+      dockerfile: Dockerfile
     container_name: adk-agent
     ports:
       - "8001:8001"
     environment:
       SESSION_DB_URL: postgresql+psycopg2://adk_user:adk_password@db:5432/adk_db
-      AGENT_DIR: apps/backends/adk/agents
+      AGENT_DIR: agents
       REPO_ROOT: /repos
+      GOOGLE_GENAI_USE_VERTEXAI: "TRUE"
+      GOOGLE_CLOUD_PROJECT: ds-staff-gen-ai-prd-955b
+      GOOGLE_CLOUD_LOCATION: us-central1
     env_file:
       - .env
     volumes:

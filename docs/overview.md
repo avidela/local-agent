@@ -9,8 +9,19 @@ Key features:
 - Built with Google's Agent Development Kit (ADK).
 - Dockerized setup for easy deployment.
 - Access to file system operations within the configured repository directory.
+- Modular architecture with UV workspaces for dependency isolation.
 
 The primary entry point for the application is `main.py`, and the API is defined in `api.py`. Dependencies are managed using `uv` and defined in `pyproject.toml` with a lock file `uv.lock`.
+
+## UV Workspace Structure
+
+This project uses UV workspaces to isolate dependencies for different components:
+
+- **Root workspace**: Contains shared dependencies and workspace configuration
+- **Streamlit workspace**: Contains frontend-specific dependencies
+- **ADK workspace**: Contains backend-specific dependencies for the ADK implementation
+
+This modular approach allows each component to have its own dependencies while maintaining a clean project structure. The workspace configuration is defined in the root `pyproject.toml` file.
 
 ## Directory Structure
 
@@ -29,7 +40,9 @@ The primary entry point for the application is `main.py`, and the API is defined
 ├── .env
 ├── apps/
 │   ├── backends/
-│   │   └── adk/
+│   │   ├── adk/                # Main ADK backend implementation
+│   │   ├── langraph/           # Placeholder for future LangGraph implementation
+│   │   └── pydantic_ai/        # Placeholder for future PydanticAI implementation
 │   │       ├── Dockerfile
 │   │       ├── api.py
 │   │       ├── .dockerignore
@@ -79,9 +92,36 @@ The primary entry point for the application is `main.py`, and the API is defined
 │   │           ├── __init__.py
 │   │           └── agent.py
 │   └── frontends/
+│       ├── adk-web/            # Angular frontend (git submodule from official Google ADK)
 │       └── streamlit/
-│           ├── app.py
-│           └── Dockerfile
+│           ├── .python-version
+│           ├── Dockerfile
+│           ├── main.py              # Entry point
+│           ├── pyproject.toml       # Streamlit workspace dependencies
+│           ├── README.md
+│           ├── uv.lock              # Locked dependencies for streamlit
+│           └── src/                 # Source code directory
+│               ├── __init__.py
+│               ├── app.py           # Main application code
+│               ├── core/            # Core functionality
+│               │   ├── __init__.py
+│               │   ├── api_client.py
+│               │   ├── config.py
+│               │   └── components/
+│               ├── modules/         # Feature modules
+│               │   ├── __init__.py
+│               │   └── conversations/
+│               ├── services/        # Service layer
+│               │   ├── __init__.py
+│               │   ├── backend_client_protocol.py
+│               │   ├── backend_selector.py
+│               │   ├── adk_backend/
+│               │   └── backend_adapters/
+│               └── shared/          # Shared utilities and models
+│                   ├── __init__.py
+│                   ├── components/
+│                   ├── models/
+│                   └── utils/
 └── docs/                     # Documentation files
     ├── overview.md           # This file
     ├── setup.md
@@ -91,10 +131,7 @@ The primary entry point for the application is `main.py`, and the API is defined
     ├── tools.md
     ├── callbacks.md
     ├── adding_tools.md
-    ├── adding_sub_agents.md
-    └── plans/                # Directory for planned refactors/work
-        ├── 00_refactor_codebase_structure.md
-        └── 00_refactor_agent_prompt.md # Prompt for agent execution
+    └── adding_sub_agents.md
 ```
 
 ## Detailed Documentation
