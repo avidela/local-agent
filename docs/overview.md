@@ -40,7 +40,9 @@ This modular approach allows each component to have its own dependencies while m
 ├── .env
 ├── apps/
 │   ├── backends/
-│   │   └── adk/
+│   │   ├── adk/                # Main ADK backend implementation
+│   │   ├── langraph/           # Placeholder for future LangGraph implementation
+│   │   └── pydantic_ai/        # Placeholder for future PydanticAI implementation
 │   │       ├── Dockerfile
 │   │       ├── api.py
 │   │       ├── .dockerignore
@@ -90,6 +92,7 @@ This modular approach allows each component to have its own dependencies while m
 │   │           ├── __init__.py
 │   │           └── agent.py
 │   └── frontends/
+│       ├── adk-web/            # Angular frontend (git submodule from official Google ADK)
 │       └── streamlit/
 │           ├── .python-version
 │           ├── Dockerfile
@@ -128,10 +131,7 @@ This modular approach allows each component to have its own dependencies while m
     ├── tools.md
     ├── callbacks.md
     ├── adding_tools.md
-    ├── adding_sub_agents.md
-    └── plans/                # Directory for planned refactors/work
-        ├── 00_refactor_codebase_structure.md
-        └── 00_refactor_agent_prompt.md # Prompt for agent execution
+    └── adding_sub_agents.md
 ```
 
 ## Detailed Documentation

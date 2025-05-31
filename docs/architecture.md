@@ -4,11 +4,11 @@ The Local Agent is designed as a multi-agent system using Google's Agent Develop
 
 ## Core Components
 
-*   **`local_agent` (Main Agent):** This is the primary agent that receives user requests. It uses the `gemini-2.5-pro-exp-03-25` model with a temperature of `0.10`. In addition to its main instruction prompt (`prompt.py`), it receives a dynamic `global_instruction` containing the current date. It is responsible for understanding the user's intent and delegating the task to the most appropriate sub-agent or executing it directly using its available tools.
+*   **`local_agent` (Main Agent):** This is the primary agent that receives user requests. It uses the `gemini-2.0-flash-exp` model with a temperature of `0.01`. In addition to its main instruction prompt (`prompt.py`), it receives a dynamic `global_instruction` containing the current date. It is responsible for understanding the user's intent and delegating the task to the most appropriate sub-agent or executing it directly using its available tools.
 
 *   **Sub-agents:** The `local_agent` can delegate tasks to specialized sub-agents. Currently, the system includes:
     *   **`researcher` Agent:** Specialized in finding and critically evaluating *online* information using tools like Google Search. Its detailed prompt guides it to understand requests, gather information from diverse online sources, assess source credibility (authority, currency, accuracy, purpose), compare sources, identify bias, synthesize findings, and provide structured, evidence-based responses before transferring back to the `local_agent`.
-    *   **`developer` Agent:** (Currently has an empty prompt and no specific tools defined in its agent file, suggesting its role might be intended for future expansion or handled by the main agent's tools). Its intended purpose is likely related to code manipulation, analysis, or execution.
+    *   **`developer` Agent:** (Currently has an instruction prompt but no specific tools defined in its agent file, suggesting its role might be intended for future expansion or handled by the main agent's tools). Its intended purpose is likely related to code manipulation, analysis, or execution.
 
 *   **Tools:** Agents interact with the environment and perform actions through tools. The `local_agent` is configured with a suite of tools:
     *   **Standard Filesystem Tools (via `LangchainTool` wrapper):** `FileSearchTool`, `ListDirectoryTool`, `ReadFileTool`, `WriteFileTool`, `CopyFileTool`, `MoveFileTool`, `DeleteFileTool`. These operate relative to the configured `REPO_ROOT`.
@@ -24,7 +24,7 @@ When a user submits a request to the `local_agent`:
     *   Handle the request directly using its configured tools.
     *   Delegate the request to a relevant sub-agent (e.g., if the request requires online research and evaluation, it transfers to the `researcher`).
 3.  If a sub-agent handles the request, it uses its own instructions and tools to fulfill the task.
-4.  After a sub-agent completes its task (or if the `local_agent` handled it directly), the result is typically returned, and the `local_agent` may format the final response to the user. Callbacks may intercept or modify input/output at various stages (see [Agent Callbacks](callbacks.md)).
+4.  After a sub-agent completes its task (or if the `local_agent` handled it directly), the result is typically returned, and the `local_agent` may format the final response to the user. Callbacks are defined but currently commented out in the implementation (see [Agent Callbacks](callbacks.md)).
 
 ## Extending the Architecture
 
