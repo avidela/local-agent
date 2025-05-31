@@ -93,21 +93,67 @@ If you prefer to run the agent directly on your system using a Python virtual en
 
     The `--reload` flag is useful during development as it will restart the server whenever code changes are detected.
 
-## Updating Dependencies (Local Development)
+## Working with UV Workspaces
 
-If you are using the local development setup with UV:
+This project uses UV workspaces to isolate dependencies for different components:
 
-1.  Edit the `pyproject.toml` file to add, remove, or update dependencies.
-2.  Update the `uv.lock` file by running:
+1. **Root workspace**: Contains shared dependencies and workspace configuration
+2. **Streamlit workspace**: Contains frontend-specific dependencies in `apps/frontends/streamlit/`
+3. **ADK workspace**: Contains backend-specific dependencies in `apps/backends/adk/`
 
-    ```bash
-    uv lock
-    ```
+### Running Commands in Specific Workspaces
 
-3.  Update your virtual environment with the changes:
+To run commands in a specific workspace:
 
-    ```bash
-    uv sync
-    ```
+```bash
+# For the ADK backend
+cd apps/backends/adk
+uv run uvicorn api:app --reload --port 8001
 
-4.  Commit both `pyproject.toml` and `uv.lock` to version control.
+# For the Streamlit frontend
+cd apps/frontends/streamlit
+uv run streamlit run main.py
+```
+
+### Updating Dependencies in Workspaces
+
+When updating dependencies in a workspace:
+
+1. Navigate to the workspace directory (e.g., `apps/backends/adk/` or `apps/frontends/streamlit/`)
+2. Edit the workspace's `pyproject.toml` file
+3. Update the workspace's lock file:
+
+   ```bash
+   uv lock
+   ```
+
+4. Update the workspace's dependencies:
+
+   ```bash
+   uv sync
+   ```
+
+5. Commit both the workspace's `pyproject.toml` and `uv.lock` to version control
+
+### Root Workspace Dependencies
+
+For dependencies that are shared across all workspaces:
+
+1. Edit the root `pyproject.toml` file
+2. Update the root lock file:
+
+   ```bash
+   uv lock
+   ```
+
+3. Update your virtual environment with the changes:
+
+   ```bash
+   # To sync only the root workspace
+   uv sync
+   
+   # To sync all workspaces at once
+   uv sync --all-packages
+   ```
+
+4. Commit both the root `pyproject.toml` and `uv.lock` to version control

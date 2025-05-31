@@ -26,7 +26,7 @@ logger.info(f"Using Session DB URL: {'InMemory' if not session_db_url else sessi
 
 
 app = get_fast_api_app(
-    agent_dir=agent_dir,
+    agents_dir=agent_dir,
     session_db_url=session_db_url,
     allow_origins=["*"],
     web=True

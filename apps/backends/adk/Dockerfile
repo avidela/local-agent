@@ -7,7 +7,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /app
 
 # Copy only the necessary dependency files
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml ./
 
 # Install dependencies using uv (without --locked flag to allow updates)
 RUN uv sync
@@ -28,10 +28,10 @@ COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Copy the application code
-COPY apps/backends/adk /app/apps/backends/adk
+COPY . /app
 
 # Expose the port your application listens on
 EXPOSE 8001
 
 # Command to run your application
-CMD ["uv","run","uvicorn", "apps.backends.adk.api:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uv","run","uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8001"]
