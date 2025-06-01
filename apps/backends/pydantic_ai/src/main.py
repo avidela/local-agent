@@ -13,7 +13,7 @@ from .database import init_db, close_db
 from .observability import setup_observability
 from .api import (
     agents_router, sessions_router, auth_router, health_router,
-    evaluations_router, workflows_router, tools_router
+    evaluations_router, workflows_router, tools_router, websocket_router
 )
 
 
@@ -67,6 +67,7 @@ app.include_router(sessions_router, prefix=f"{settings.api_v1_prefix}/sessions",
 app.include_router(evaluations_router, prefix=f"{settings.api_v1_prefix}/evaluations", tags=["Evaluations"])
 app.include_router(workflows_router, prefix=f"{settings.api_v1_prefix}/workflows", tags=["Workflows"])
 app.include_router(tools_router, prefix=f"{settings.api_v1_prefix}/tools", tags=["Tools"])
+app.include_router(websocket_router, prefix=f"{settings.api_v1_prefix}/ws", tags=["WebSocket"])
 
 
 @app.get("/")

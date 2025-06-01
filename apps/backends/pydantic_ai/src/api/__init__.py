@@ -9,6 +9,7 @@ from .routes.health import router as health_router
 from .routes.evaluations import router as evaluations_router
 from .routes.workflows import router as workflows_router
 from .routes.tools import router as tools_router
+from .routes.websocket import router as websocket_router
 
 __all__ = [
     "agents_router",
@@ -18,4 +19,5 @@ __all__ = [
     "evaluations_router",
     "workflows_router",
     "tools_router",
+    "websocket_router",
 ]

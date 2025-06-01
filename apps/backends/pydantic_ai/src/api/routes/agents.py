@@ -2,9 +2,12 @@
 Agents API routes using official PydanticAI patterns.
 """
 
-from typing import List
+import json
+import asyncio
+from typing import Any, AsyncGenerator, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...database import get_db
@@ -198,7 +201,354 @@ async def delete_agent(
         )
 
 
-@router.post("/{agent_id}/run", response_model=AgentRunResponse)
+def _is_message_complete(content: str, buffer: str) -> bool:
+    """
+    Determine if a streaming content chunk represents a complete message unit.
+    
+    Args:
+        content: The current content chunk
+        buffer: The accumulated content buffer
+        
+    Returns:
+        True if the message appears complete, False if partial
+    """
+    
+    # Simple heuristics for message completion detection
+    # These can be adjusted based on your specific streaming patterns
+    
+    # Check for sentence endings
+    sentence_endings = ['.', '!', '?', '\n\n']
+    if any(content.rstrip().endswith(ending) for ending in sentence_endings):
+        return True
+    
+    # Check for paragraph breaks (double newlines)
+    if '\n\n' in content:
+        return True
+    
+    # Check for code block endings
+    if content.rstrip().endswith('```'):
+        return True
+    
+    # Check for list item completion (ends with newline after bullet point content)
+    if content.rstrip().endswith('\n') and buffer.strip() and any(buffer.strip().startswith(marker) for marker in ['- ', '* ', '1. ', '2. ', '3. ']):
+        return True
+    
+    # Check for structured data endings (JSON, etc.)
+    if content.rstrip().endswith('}') or content.rstrip().endswith(']'):
+        return True
+    
+    # If content is very short (likely incomplete)
+    if len(content.strip()) < 3:
+        return False
+    
+    # Default to partial for safety
+    return False
+
+
+async def stream_agent_response(
+    agent_service: Any,
+    agent: Any,
+    run_request: AgentRunRequest,
+    session_id: str,
+    db: AsyncSession,
+    **run_kwargs
+) -> AsyncGenerator[str, None]:
+    """
+    Generate SSE stream for agent response.
+    
+    Args:
+        agent_service: Agent service instance
+        agent: Database Agent record
+        run_request: Run request configuration
+        session_id: Session ID for context
+        db: Database session
+        **run_kwargs: Additional run arguments
+        
+    Yields:
+        SSE-formatted chunks
+    """
+    
+    try:
+        # Start streaming
+        yield f"data: {json.dumps({'type': 'start', 'content': 'Starting agent response...'})}\n\n"
+        
+        # Get the streaming context manager from PydanticAI
+        stream_context = await agent_service.stream_agent(
+            agent=agent,
+            prompt=run_request.prompt,
+            **run_kwargs
+        )
+        
+        if not stream_context:
+            yield f"data: {json.dumps({'type': 'error', 'content': 'Failed to start agent stream'})}\n\n"
+            return
+        
+        # Initialize cost and token tracking
+        total_cost = 0.0
+        total_tokens = 0
+        response_text = ""
+        
+        # Use the async context manager to get the stream
+        async with stream_context as stream_result:
+            # Track message processing for PydanticAI streaming
+            current_tool = None
+            content_buffer = ""
+            last_complete_message = ""  # Track the last complete message for database storage
+            
+            # Process each message in the stream
+            async for message in stream_result.stream():
+                try:
+                    # Debug: print message type for troubleshooting
+                    print(f"Stream message type: {type(message)}")
+                    print(f"Stream message content: {repr(message)}")
+                    
+                    # Handle string messages (direct content)
+                    if isinstance(message, str):
+                        content = message
+                        if content.strip():  # Only send non-empty content
+                            # For PydanticAI, each chunk often contains the full text so far
+                            # We'll use the content as is for streaming, but track the latest complete version
+                            content_buffer = content  # Replace buffer with latest content
+                            
+                            # Determine if this chunk appears to be a complete message unit
+                            is_complete = _is_message_complete(content, content_buffer)
+                            
+                            # Send content chunk with partial/complete indicator
+                            content_event = {
+                                'type': 'content',
+                                'content': content,
+                                'partial': not is_complete,
+                                'buffer_size': len(content_buffer)
+                            }
+                            yield f"data: {json.dumps(content_event)}\n\n"
+                            
+                            # If this appears to be a complete message unit, update last complete message
+                            if is_complete:
+                                last_complete_message = content_buffer.strip()
+                                boundary_event = {
+                                    'type': 'message_boundary',
+                                    'content': last_complete_message,
+                                    'length': len(last_complete_message)
+                                }
+                                yield f"data: {json.dumps(boundary_event)}\n\n"
+                    
+                    # Handle structured message objects
+                    elif hasattr(message, 'parts') and message.parts:
+                        for part in message.parts:
+                            print(f"Message part type: {type(part)}")
+                            
+                            # Handle text content parts (primary content)
+                            if hasattr(part, 'text') and part.text and part.text.strip():
+                                content = part.text
+                                content_buffer = content  # Replace with latest content
+                                
+                                is_complete = _is_message_complete(content, content_buffer)
+                                
+                                content_event = {
+                                    'type': 'content',
+                                    'content': content,
+                                    'partial': not is_complete,
+                                    'buffer_size': len(content_buffer)
+                                }
+                                yield f"data: {json.dumps(content_event)}\n\n"
+                                
+                                if is_complete:
+                                    last_complete_message = content_buffer.strip()
+                                    boundary_event = {
+                                        'type': 'message_boundary',
+                                        'content': last_complete_message,
+                                        'length': len(last_complete_message)
+                                    }
+                                    yield f"data: {json.dumps(boundary_event)}\n\n"
+                            
+                            # Handle legacy content attribute for backwards compatibility
+                            elif hasattr(part, 'content') and isinstance(part.content, str) and part.content.strip():
+                                content = part.content
+                                content_buffer = content  # Replace with latest content
+                                
+                                is_complete = _is_message_complete(content, content_buffer)
+                                
+                                content_event = {
+                                    'type': 'content',
+                                    'content': content,
+                                    'partial': not is_complete,
+                                    'buffer_size': len(content_buffer)
+                                }
+                                yield f"data: {json.dumps(content_event)}\n\n"
+                                
+                                if is_complete:
+                                    last_complete_message = content_buffer.strip()
+                                    boundary_event = {
+                                        'type': 'message_boundary',
+                                        'content': last_complete_message,
+                                        'length': len(last_complete_message)
+                                    }
+                                    yield f"data: {json.dumps(boundary_event)}\n\n"
+                            
+                            # Handle Gemini-specific parts gracefully (skip empty/unsupported parts)
+                            elif hasattr(part, 'function_call') and part.function_call:
+                                # Handle function calls (tool calls)
+                                tool_name = getattr(part.function_call, 'name', 'unknown')
+                                current_tool = tool_name
+                                tool_event = {
+                                    'type': 'tool',
+                                    'tool_name': tool_name,
+                                    'status': 'executing',
+                                    'partial': False,
+                                    'args': getattr(part.function_call, 'args', {})
+                                }
+                                yield f"data: {json.dumps(tool_event)}\n\n"
+                            
+                            elif hasattr(part, 'function_response') and part.function_response:
+                                # Handle function responses (tool responses)
+                                if current_tool:
+                                    tool_result = str(getattr(part.function_response, 'response', ''))
+                                    tool_response_event = {
+                                        'type': 'tool',
+                                        'tool_name': current_tool,
+                                        'status': 'completed',
+                                        'result': tool_result,
+                                        'partial': False
+                                    }
+                                    yield f"data: {json.dumps(tool_response_event)}\n\n"
+                                    current_tool = None
+                            
+                            # Skip other Gemini-specific parts (thoughts, video_metadata, etc.)
+                            # These are informational but not needed for streaming content
+                            else:
+                                # Debug: Log skipped parts without causing errors
+                                part_attrs = [attr for attr in dir(part) if not attr.startswith('_')]
+                                print(f"Skipping unsupported part with attributes: {part_attrs}")
+                            
+                    
+                    # Handle direct message content attributes
+                    elif hasattr(message, 'content'):
+                        if isinstance(message.content, str):
+                            content = message.content
+                            if content.strip():
+                                response_text += content
+                                content_buffer = content  # Replace with latest content
+                                
+                                is_complete = _is_message_complete(content, content_buffer)
+                                
+                                content_event = {
+                                    'type': 'content',
+                                    'content': content,
+                                    'partial': not is_complete,
+                                    'buffer_size': len(content_buffer)
+                                }
+                                yield f"data: {json.dumps(content_event)}\n\n"
+                                
+                                if is_complete:
+                                    last_complete_message = content_buffer.strip()
+                                    boundary_event = {
+                                        'type': 'message_boundary',
+                                        'content': last_complete_message,
+                                        'length': len(last_complete_message)
+                                    }
+                                    yield f"data: {json.dumps(boundary_event)}\n\n"
+                        elif hasattr(message.content, 'text'):
+                            content = message.content.text
+                            if content and content.strip():
+                                content_buffer = content  # Replace with latest content
+                                
+                                is_complete = _is_message_complete(content, content_buffer)
+                                
+                                content_event = {
+                                    'type': 'content',
+                                    'content': content,
+                                    'partial': not is_complete,
+                                    'buffer_size': len(content_buffer)
+                                }
+                                yield f"data: {json.dumps(content_event)}\n\n"
+                                
+                                if is_complete:
+                                    last_complete_message = content_buffer.strip()
+                                    boundary_event = {
+                                        'type': 'message_boundary',
+                                        'content': last_complete_message,
+                                        'length': len(last_complete_message)
+                                    }
+                                    yield f"data: {json.dumps(boundary_event)}\n\n"
+                    
+                    # Handle tool calls at message level (always complete events)
+                    elif hasattr(message, 'tool_calls') and message.tool_calls:
+                        for tool_call in message.tool_calls:
+                            tool_name = getattr(tool_call, 'name', getattr(tool_call, 'function', {}).get('name', 'unknown'))
+                            tool_event = {
+                                'type': 'tool',
+                                'tool_name': tool_name,
+                                'status': 'executing',
+                                'partial': False
+                            }
+                            yield f"data: {json.dumps(tool_event)}\n\n"
+                        
+                except Exception as chunk_error:
+                    print(f"Error processing stream message: {chunk_error}")
+                    print(f"Message: {repr(message)}")
+                    yield f"data: {json.dumps({'type': 'error', 'content': f'Stream processing error: {str(chunk_error)}'})}\n\n"
+            
+            # Handle any remaining content in buffer as final complete message
+            if content_buffer.strip():
+                last_complete_message = content_buffer.strip()
+                final_boundary_event = {
+                    'type': 'message_boundary',
+                    'content': last_complete_message,
+                    'length': len(last_complete_message),
+                    'final': True
+                }
+                yield f"data: {json.dumps(final_boundary_event)}\n\n"
+            
+            # Use the last complete message for database storage (clean, no duplicates)
+            final_message_for_db = last_complete_message if last_complete_message else content_buffer.strip()
+            
+            # Get final result data from the run result
+            try:
+                if hasattr(stream_result, 'cost'):
+                    total_cost = float(stream_result.cost() or 0.0)
+                if hasattr(stream_result, 'usage'):
+                    usage = stream_result.usage()
+                    if hasattr(usage, 'total_tokens'):
+                        total_tokens = usage.total_tokens
+                    elif hasattr(usage, 'request_tokens') and hasattr(usage, 'response_tokens'):
+                        total_tokens = usage.request_tokens + usage.response_tokens
+                        
+                # If no content was streamed, get the final data
+                if not final_message_for_db and hasattr(stream_result, 'data'):
+                    final_message_for_db = str(stream_result.data)
+                    final_content_event = {
+                        'type': 'content',
+                        'content': final_message_for_db,
+                        'partial': False,
+                        'final': True
+                    }
+                    yield f"data: {json.dumps(final_content_event)}\n\n"
+                    
+            except Exception as result_error:
+                print(f"Error extracting result data: {result_error}")
+        
+        # Add final assistant message to session using clean message (no duplicates)
+        await session_service.add_message(
+            db=db,
+            session_id=str(session_id),
+            role=MessageRole.ASSISTANT,
+            content={"text": final_message_for_db},
+            metadata={
+                "cost": total_cost,
+                "tokens": total_tokens,
+                "model": agent.model_name
+            }
+        )
+        
+        # Send completion
+        yield f"data: {json.dumps({'type': 'complete', 'content': final_message_for_db, 'cost': total_cost, 'tokens': total_tokens})}\n\n"
+        
+    except Exception as e:
+        print(f"Streaming error: {e}")
+        yield f"data: {json.dumps({'type': 'error', 'content': f'Streaming error: {str(e)}'})}\n\n"
+
+
+@router.post("/{agent_id}/run")
 async def run_agent(
     agent_id: int,
     run_request: AgentRunRequest,
@@ -259,7 +609,7 @@ async def run_agent(
             # Add user message to session
             user_message = await session_service.add_message(
                 db=db,
-                session_id=session_id,
+                session_id=str(session_id),
                 role=MessageRole.USER,
                 content={"text": run_request.prompt},
                 metadata={"timestamp": "now"}
@@ -283,11 +633,23 @@ async def run_agent(
             
             # Run agent using official PydanticAI API
             if run_request.stream:
-                # Stream response
-                result = await agent_service.stream_agent(
-                    agent=agent,
-                    prompt=run_request.prompt,
-                    **run_kwargs
+                # Return SSE streaming response
+                return StreamingResponse(
+                    stream_agent_response(
+                        agent_service=agent_service,
+                        agent=agent,
+                        run_request=run_request,
+                        session_id=str(session_id),
+                        db=db,
+                        **run_kwargs
+                    ),
+                    media_type="text/event-stream",
+                    headers={
+                        "Cache-Control": "no-cache",
+                        "Connection": "keep-alive",
+                        "Access-Control-Allow-Origin": "*",
+                        "Access-Control-Allow-Headers": "*",
+                    }
                 )
             else:
                 # Regular response

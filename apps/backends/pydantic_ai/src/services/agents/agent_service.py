@@ -419,12 +419,13 @@ class AgentService:
             run_kwargs.update(kwargs)
             
             # Import here to avoid dependency issues during development
-            result = await pydantic_agent.run_stream(**run_kwargs)
+            # PydanticAI run_stream returns a context manager, not a direct async generator
+            stream_context = pydantic_agent.run_stream(**run_kwargs)
             
             # Update usage count
             agent.usage_count += 1
             
-            return result
+            return stream_context
             
         except Exception as e:
             print(f"Error streaming agent {agent.id}: {e}")
