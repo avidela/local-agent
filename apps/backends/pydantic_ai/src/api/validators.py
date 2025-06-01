@@ -5,14 +5,13 @@ Custom Pydantic validators for enhanced input validation.
 import re
 from typing import Any, Dict, List
 from pydantic import validator, Field
-from pydantic.validators import str_validator
 
 from ..database.models import ModelProvider
 
 
 def validate_email(email: str) -> str:
     """Enhanced email validation."""
-    email = str_validator(email)
+    email = str(email).strip()
     
     # Basic email regex pattern
     email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -35,7 +34,7 @@ def validate_email(email: str) -> str:
 
 def validate_password_strength(password: str) -> str:
     """Enhanced password validation."""
-    password = str_validator(password)
+    password = str(password).strip()
     
     if len(password) < 8:
         raise ValueError('Password must be at least 8 characters long')
@@ -80,7 +79,7 @@ def validate_password_strength(password: str) -> str:
 
 def validate_tool_name(tool_name: str) -> str:
     """Validate tool name format and security."""
-    tool_name = str_validator(tool_name).strip()
+    tool_name = str(tool_name).strip()
     
     if not tool_name:
         raise ValueError('Tool name cannot be empty')
@@ -138,7 +137,7 @@ def validate_tool_config(config: Dict[str, Any]) -> Dict[str, Any]:
 
 def validate_system_prompt(prompt: str) -> str:
     """Validate system prompt for safety and format."""
-    prompt = str_validator(prompt).strip()
+    prompt = str(prompt).strip()
     
     if not prompt:
         raise ValueError('System prompt cannot be empty')
@@ -171,7 +170,7 @@ def validate_system_prompt(prompt: str) -> str:
 
 def validate_model_name(model_name: str, provider: ModelProvider) -> str:
     """Validate model name format and availability."""
-    model_name = str_validator(model_name).strip()
+    model_name = str(model_name).strip()
     
     if not model_name:
         raise ValueError('Model name cannot be empty')
@@ -219,7 +218,7 @@ def validate_model_name(model_name: str, provider: ModelProvider) -> str:
 
 def validate_session_id(session_id: str) -> str:
     """Validate session ID format."""
-    session_id = str_validator(session_id).strip()
+    session_id = str(session_id).strip()
     
     if not session_id:
         raise ValueError('Session ID cannot be empty')

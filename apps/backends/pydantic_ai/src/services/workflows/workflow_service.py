@@ -17,7 +17,12 @@ from ...database import Workflow, WorkflowExecution, Agent, User, WorkflowStatus
 from ...config import settings
 from ..agents import agent_service
 from ..models import model_provider_service
-from ...observability import trace_workflow_execution
+from ...observability import (
+    observability_service,
+    trace_workflow_execution,
+    add_span_attributes,
+    record_exception
+)
 
 
 @dataclass
@@ -205,6 +210,149 @@ class WorkflowService:
             Execution results
         """
         
+        tracer = observability_service.get_tracer()
+        if not tracer:
+            # Fallback to non-traced execution
+            return await self._execute_workflow_untraced(workflow_id, input_data, user_id, db)
+        
+        with tracer.start_as_current_span(
+            "workflow.execute",
+            attributes={
+                "workflow_id": workflow_id,
+                "user_id": user_id,
+                "input_data_keys": list(input_data.keys()),
+                "input_data_size": len(str(input_data))
+            }
+        ):
+            try:
+                # Get workflow
+                with observability_service.trace_database_operation("select", "workflows", workflow_id=workflow_id):
+                    workflow = await self.get_workflow(workflow_id, user_id, db)
+                    if not workflow:
+                        add_span_attributes(workflow_execution_success=False, failure_reason="workflow_not_found")
+                        raise ValueError(f"Workflow {workflow_id} not found")
+                
+                add_span_attributes(
+                    workflow_name=workflow.name,
+                    workflow_type=workflow.workflow_type,
+                    workflow_status=workflow.status.value if hasattr(workflow.status, 'value') else str(workflow.status)
+                )
+                
+                # Update workflow status
+                workflow.status = WorkflowStatus.RUNNING
+                workflow.started_at = datetime.utcnow()
+                start_time = workflow.started_at
+                
+                with observability_service.trace_database_operation("update", "workflows", workflow_id=workflow_id):
+                    await db.commit()
+                
+                try:
+                    # Create workflow state
+                    state = WorkflowState(
+                        workflow_id=workflow_id,
+                        user_id=user_id,
+                        session_data=input_data,
+                    )
+                    
+                    # Build graph from configuration
+                    with tracer.start_as_current_span("workflow.build_graph"):
+                        graph = self._build_graph_from_config(workflow.graph_config)
+                        start_node = self._create_start_node_from_config(workflow.graph_config)
+                        add_span_attributes(
+                            graph_node_count=len(workflow.graph_config.get('nodes', [])),
+                            graph_edge_count=len(workflow.graph_config.get('edges', []))
+                        )
+                    
+                    # Execute workflow
+                    with observability_service.trace_workflow_execution(workflow.name, "full_execution"):
+                        result = await graph.run(start_node)
+                        
+                        # Update workflow with results
+                        workflow.status = WorkflowStatus.COMPLETED
+                        workflow.completed_at = datetime.utcnow()
+                        duration = (cast(datetime, workflow.completed_at) - cast(datetime, start_time)).total_seconds()
+                        
+                        workflow.current_state = {
+                            'session_data': state.session_data,
+                            'execution_history': state.execution_history,
+                            'final_result': str(result.output) if result else None,
+                        }
+                        
+                        # Store execution steps with tracing
+                        with observability_service.trace_database_operation("insert", "workflow_executions", workflow_id=workflow_id):
+                            for i, step in enumerate(state.execution_history):
+                                execution = WorkflowExecution(
+                                    workflow_id=workflow_id,
+                                    step_number=i,
+                                    node_name=step.get('node_type', 'unknown'),
+                                    node_config=step,
+                                    execution_result={'result': step.get('result', step.get('error'))},
+                                    started_at=datetime.fromisoformat(step['timestamp']),
+                                    completed_at=datetime.fromisoformat(step['timestamp']),
+                                )
+                                db.add(execution)
+                            
+                            await db.commit()
+                        
+                        add_span_attributes(
+                            workflow_execution_success=True,
+                            execution_step_count=len(state.execution_history),
+                            workflow_duration_seconds=duration,
+                            final_result_length=len(str(result.output)) if result and result.output else 0
+                        )
+                        
+                        return {
+                            'workflow_id': workflow_id,
+                            'status': 'completed',
+                            'result': result.output if result else None,
+                            'execution_history': state.execution_history,
+                            'duration_seconds': duration,
+                        }
+                        
+                except Exception as e:
+                    # Update workflow with error
+                    workflow.status = WorkflowStatus.FAILED
+                    workflow.completed_at = datetime.utcnow()
+                    workflow.error_message = str(e)
+                    workflow.current_state = {
+                        'error': str(e),
+                        'session_data': input_data,
+                    }
+                    
+                    duration = (cast(datetime, workflow.completed_at) - cast(datetime, start_time)).total_seconds()
+                    
+                    with observability_service.trace_database_operation("update", "workflows", workflow_id=workflow_id):
+                        await db.commit()
+                    
+                    record_exception(e)
+                    add_span_attributes(
+                        workflow_execution_success=False,
+                        failure_reason="execution_error",
+                        error_message=str(e),
+                        duration_seconds=duration
+                    )
+                    
+                    return {
+                        'workflow_id': workflow_id,
+                        'status': 'error',
+                        'error': str(e),
+                        'duration_seconds': duration,
+                    }
+                    
+            except Exception as e:
+                record_exception(e)
+                add_span_attributes(workflow_execution_success=False, failure_reason="setup_error")
+                raise
+    
+    async def _execute_workflow_untraced(
+        self,
+        workflow_id: int,
+        input_data: Dict[str, Any],
+        user_id: int,
+        db: AsyncSession,
+    ) -> Dict[str, Any]:
+        """Fallback method for workflow execution without tracing."""
+        
         # Get workflow
         workflow = await self.get_workflow(workflow_id, user_id, db)
         if not workflow:
@@ -228,43 +376,42 @@ class WorkflowService:
             start_node = self._create_start_node_from_config(workflow.graph_config)
             
             # Execute workflow
-            with trace_workflow_execution(workflow.name, "full_execution"):
-                result = await graph.run(start_node)
-                
-                # Update workflow with results
-                workflow.status = WorkflowStatus.COMPLETED
-                workflow.completed_at = datetime.utcnow()
-                workflow.current_state = {
-                    'session_data': state.session_data,
-                    'execution_history': state.execution_history,
-                    'final_result': str(result.output) if result else None,
-                }
-                
-                # Store execution steps
-                for i, step in enumerate(state.execution_history):
-                    execution = WorkflowExecution(
-                        workflow_id=workflow_id,
-                        step_number=i,
-                        node_name=step.get('node_type', 'unknown'),
-                        node_config=step,
-                        execution_result={'result': step.get('result', step.get('error'))},
-                        started_at=datetime.fromisoformat(step['timestamp']),
-                        completed_at=datetime.fromisoformat(step['timestamp']),
-                    )
-                    db.add(execution)
-                
-                await db.commit()
-                
-                return {
-                    'workflow_id': workflow_id,
-                    'status': 'completed',
-                    'result': result.output if result else None,
-                    'execution_history': state.execution_history,
-                    'duration_seconds': (
-                        cast(datetime, workflow.completed_at) - cast(datetime, workflow.started_at)
-                    ).total_seconds() if workflow.completed_at and workflow.started_at else 0,
-                }
-                
+            result = await graph.run(start_node)
+            
+            # Update workflow with results
+            workflow.status = WorkflowStatus.COMPLETED
+            workflow.completed_at = datetime.utcnow()
+            workflow.current_state = {
+                'session_data': state.session_data,
+                'execution_history': state.execution_history,
+                'final_result': str(result.output) if result else None,
+            }
+            
+            # Store execution steps
+            for i, step in enumerate(state.execution_history):
+                execution = WorkflowExecution(
+                    workflow_id=workflow_id,
+                    step_number=i,
+                    node_name=step.get('node_type', 'unknown'),
+                    node_config=step,
+                    execution_result={'result': step.get('result', step.get('error'))},
+                    started_at=datetime.fromisoformat(step['timestamp']),
+                    completed_at=datetime.fromisoformat(step['timestamp']),
+                )
+                db.add(execution)
+            
+            await db.commit()
+            
+            return {
+                'workflow_id': workflow_id,
+                'status': 'completed',
+                'result': result.output if result else None,
+                'execution_history': state.execution_history,
+                'duration_seconds': (
+                    cast(datetime, workflow.completed_at) - cast(datetime, workflow.started_at)
+                ).total_seconds() if workflow.completed_at and workflow.started_at else 0,
+            }
+            
         except Exception as e:
             # Update workflow with error
             workflow.status = WorkflowStatus.FAILED

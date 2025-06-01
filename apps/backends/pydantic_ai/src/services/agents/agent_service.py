@@ -14,6 +14,10 @@ from ...api.exceptions import (
     AuthorizationException, BusinessLogicException,
     ExternalServiceException, ConfigurationException, ValidationException
 )
+from ...observability import (
+    trace_agent_run, trace_database_operation, trace_tool_execution,
+    add_span_attributes, record_exception
+)
 from ..models import model_provider_service
 from ..tools.tool_service import get_tool_service
 
@@ -63,51 +67,71 @@ class AgentService:
             Created Agent instance or None if failed
         """
         
-        # Validate model availability
         provider_value = model_provider.value if hasattr(model_provider, 'value') else model_provider
         full_model_name = f"{provider_value}:{model_name}"
-        if not model_provider_service.is_model_available(full_model_name):
-            raise ModelNotAvailableException(
-                model_name=full_model_name,
-                provider=provider_value
-            )
         
-        # Convert ToolConfig objects to dictionaries for database storage
-        tool_dicts = []
-        if tools:
-            for tool in tools:
-                if isinstance(tool, ToolConfig):
-                    tool_dicts.append(tool.model_dump())
-                else:
-                    # Handle legacy string tools by converting to ToolConfig format
-                    tool_dicts.append({
-                        "name": str(tool),
-                        "enabled": True,
-                        "plain": False,
-                        "config": {}
-                    })
-        
-        # Create database record
-        agent = Agent(
-            name=name,
-            description=description,
-            system_prompt=system_prompt,
-            model_provider=model_provider,
-            model_name=model_name,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            tools=tool_dicts,
-            output_type=output_type,
-            retries=retries,
-            is_public=is_public,
-            owner_id=user_id,
-        )
-        
-        db.add(agent)
-        await db.commit()
-        await db.refresh(agent)
-        
-        return agent
+        with trace_database_operation(
+            "create",
+            "agents",
+            user_id=user_id,
+            agent_name=name,
+            model=full_model_name,
+            tools_count=len(tools) if tools else 0
+        ):
+            try:
+                # Validate model availability
+                if not model_provider_service.is_model_available(full_model_name):
+                    raise ModelNotAvailableException(
+                        model_name=full_model_name,
+                        provider=provider_value
+                    )
+                
+                # Convert ToolConfig objects to dictionaries for database storage
+                tool_dicts = []
+                if tools:
+                    for tool in tools:
+                        if isinstance(tool, ToolConfig):
+                            tool_dicts.append(tool.model_dump())
+                        else:
+                            # Handle legacy string tools by converting to ToolConfig format
+                            tool_dicts.append({
+                                "name": str(tool),
+                                "enabled": True,
+                                "plain": False,
+                                "config": {}
+                            })
+                
+                # Create database record
+                agent = Agent(
+                    name=name,
+                    description=description,
+                    system_prompt=system_prompt,
+                    model_provider=model_provider,
+                    model_name=model_name,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    tools=tool_dicts,
+                    output_type=output_type,
+                    retries=retries,
+                    is_public=is_public,
+                    owner_id=user_id,
+                )
+                
+                db.add(agent)
+                await db.commit()
+                await db.refresh(agent)
+                
+                # Add success attributes
+                add_span_attributes(
+                    agent_id=agent.id,
+                    operation_success=True
+                )
+                
+                return agent
+                
+            except Exception as e:
+                record_exception(e)
+                raise
     
     async def get_agent(self, db: AsyncSession, agent_id: int, user_id: Optional[int] = None) -> Optional[Agent]:
         """
@@ -362,41 +386,65 @@ class AgentService:
             Agent result or None if failed
         """
         
-        pydantic_agent = self.get_instantiated_agent(agent)
-        if not pydantic_agent:
-            raise BusinessLogicException(
-                message=f"Failed to instantiate agent {agent.id}",
-                operation="agent_instantiation"
-            )
+        provider_value = agent.model_provider.value if hasattr(agent.model_provider, 'value') else agent.model_provider
+        full_model_name = f"{provider_value}:{agent.model_name}"
         
-        try:
-            # Use official PydanticAI agent.run() API
-            run_kwargs: Dict[str, Any] = {
-                "user_prompt": prompt,
-            }
-            
-            if message_history:
-                run_kwargs["message_history"] = message_history
-            
-            if deps:
-                run_kwargs["deps"] = deps
-            
-            # Add any additional kwargs
-            run_kwargs.update(kwargs)
-            
-            # Import here to avoid dependency issues during development
-            result = await pydantic_agent.run(**run_kwargs)
-            
-            # Update usage count
-            agent.usage_count += 1
-            
-            return result
-            
-        except Exception as e:
-            raise ExternalServiceException(
-                service_name="PydanticAI",
-                error_message=f"Agent {agent.id} execution failed: {str(e)}"
-            )
+        with trace_agent_run(
+            agent_name=agent.name,
+            prompt=prompt,
+            agent_id=agent.id,
+            model=full_model_name,
+            user_id=kwargs.get('user_id'),
+            session_id=kwargs.get('session_id'),
+            temperature=agent.temperature,
+            max_tokens=agent.max_tokens
+        ):
+            try:
+                pydantic_agent = self.get_instantiated_agent(agent)
+                if not pydantic_agent:
+                    raise BusinessLogicException(
+                        message=f"Failed to instantiate agent {agent.id}",
+                        operation="agent_instantiation"
+                    )
+                
+                # Use official PydanticAI agent.run() API
+                run_kwargs: Dict[str, Any] = {
+                    "user_prompt": prompt,
+                }
+                
+                if message_history:
+                    run_kwargs["message_history"] = message_history
+                    add_span_attributes(message_history_length=len(message_history))
+                
+                if deps:
+                    run_kwargs["deps"] = deps
+                
+                # Add any additional kwargs
+                run_kwargs.update({k: v for k, v in kwargs.items()
+                                 if k not in ['user_id', 'session_id']})
+                
+                # Import here to avoid dependency issues during development
+                result = await pydantic_agent.run(**run_kwargs)
+                
+                # Update usage count
+                agent.usage_count += 1
+                
+                # Add success metrics
+                add_span_attributes(
+                    execution_success=True,
+                    usage_count=agent.usage_count,
+                    result_type=type(result).__name__ if result else "None"
+                )
+                
+                return result
+                
+            except Exception as e:
+                record_exception(e)
+                add_span_attributes(execution_success=False)
+                raise ExternalServiceException(
+                    service_name="PydanticAI",
+                    error_message=f"Agent {agent.id} execution failed: {str(e)}"
+                )
     
     async def stream_agent(
         self,

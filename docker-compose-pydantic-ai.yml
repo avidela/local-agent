@@ -47,7 +47,7 @@ services:
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
 
       # Model Settings
-      MODEL_DEFAULT_MODEL: "openai:gpt-4o"
+      MODEL_DEFAULT_MODEL: "google:gemini-2.0-flash-exp"
       MODEL_DEFAULT_TEMPERATURE: 0.7
 
       # Authentication Settings
@@ -57,8 +57,7 @@ services:
       AUTH_ADMIN_USERNAME: "admin"
       AUTH_ADMIN_PASSWORD: "admin"
 
-      # Observability Settings
-      LOGFIRE_TOKEN: "${LOGFIRE_TOKEN:-}"
+      # Observability Settings (loaded from .env file)
       OBSERVABILITY_LOGFIRE_SERVICE_NAME: "pydantic-ai-agents"
       OBSERVABILITY_LOGFIRE_ENVIRONMENT: "development"
       OBSERVABILITY_ENABLE_TRACING: "true"
@@ -89,7 +88,7 @@ services:
         target: /root/.config/gcloud
         read_only: true
     env_file:
-      - .env
+      - ./apps/backends/pydantic_ai/.env
     networks:
       - default
     healthcheck:

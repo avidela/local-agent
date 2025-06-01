@@ -16,6 +16,11 @@ from ...database import Evaluation, Agent, User, EvaluationStatus
 from ...config import settings
 from ..agents import agent_service
 from ..models import model_provider_service
+from ...observability import (
+    observability_service,
+    add_span_attributes,
+    record_exception
+)
 
 
 class AgentResponseEvaluator(Evaluator[dict, str]):
@@ -105,6 +110,162 @@ class EvaluationService:
         Returns:
             Dictionary with evaluation results
         """
+        
+        tracer = observability_service.get_tracer()
+        if not tracer:
+            # Fallback to non-traced execution
+            return await self._evaluate_agent_untraced(
+                agent_id, evaluation_dataset, user_id, db, evaluation_name, description
+            )
+        
+        with tracer.start_as_current_span(
+            "evaluation.evaluate_agent",
+            attributes={
+                "agent_id": agent_id,
+                "user_id": user_id,
+                "case_count": len(evaluation_dataset.cases),
+                "evaluator_count": len(evaluation_dataset.evaluators),
+                "evaluator_types": [type(e).__name__ for e in evaluation_dataset.evaluators],
+                "has_custom_name": evaluation_name is not None
+            }
+        ):
+            try:
+                # Get agent from database
+                with observability_service.trace_database_operation("select", "agents", agent_id=agent_id):
+                    agent = await self.agent_service.get_agent(db, agent_id, user_id)
+                    if not agent:
+                        add_span_attributes(evaluation_success=False, failure_reason="agent_not_found")
+                        raise ValueError(f"Agent {agent_id} not found or not accessible")
+
+                # Create evaluation record
+                evaluation_record = Evaluation(
+                    name=evaluation_name or f"Evaluation of {agent.name}",
+                    description=description or f"Automated evaluation of agent {agent.name}",
+                    agent_id=agent_id,
+                    dataset_config={
+                        'case_count': len(evaluation_dataset.cases),
+                        'evaluator_types': [type(e).__name__ for e in evaluation_dataset.evaluators]
+                    },
+                    evaluator_config={
+                        'evaluators': [type(e).__name__ for e in evaluation_dataset.evaluators]
+                    },
+                    status=EvaluationStatus.RUNNING,
+                    created_by=user_id,
+                    started_at=datetime.utcnow(),
+                )
+                
+                with observability_service.trace_database_operation("insert", "evaluations"):
+                    db.add(evaluation_record)
+                    await db.commit()
+                    await db.refresh(evaluation_record)
+
+                start_time = datetime.utcnow()
+                
+                try:
+                    # Create evaluation function with tracing
+                    async def agent_task(inputs: Dict[str, Any]) -> str:
+                        """Task function for agent evaluation"""
+                        with tracer.start_as_current_span("evaluation.agent_task"):
+                            prompt = inputs.get('prompt', inputs.get('question', str(inputs)))
+                            add_span_attributes(prompt_length=len(prompt))
+                            
+                            # Run agent with the prompt
+                            result = await self.agent_service.run_agent(agent, prompt)
+                            if result:
+                                response = str(result) if result else "No response"
+                                add_span_attributes(response_length=len(response))
+                                return response
+                            return "Agent execution failed"
+
+                    # Run evaluation with tracing
+                    with tracer.start_as_current_span("evaluation.dataset_execution"):
+                        add_span_attributes(
+                            dataset_case_count=len(evaluation_dataset.cases),
+                            dataset_evaluator_count=len(evaluation_dataset.evaluators)
+                        )
+                        report = evaluation_dataset.evaluate_sync(agent_task)
+                    
+                    # Extract results
+                    summary = self._extract_summary(report)
+                    details = self._extract_details(report)
+                    
+                    end_time = datetime.utcnow()
+                    duration = (end_time - start_time).total_seconds()
+                    
+                    # Update evaluation record
+                    evaluation_record.status = EvaluationStatus.COMPLETED
+                    evaluation_record.results = {
+                        'summary': summary,
+                        'details': details,
+                        'report_data': str(report)  # Store raw report
+                    }
+                    evaluation_record.score = summary.get('average_score', 0.0)
+                    evaluation_record.total_cases = len(evaluation_dataset.cases)
+                    evaluation_record.passed_cases = summary.get('passed_cases', 0)
+                    evaluation_record.failed_cases = summary.get('failed_cases', 0)
+                    evaluation_record.completed_at = datetime.utcnow()
+                    if evaluation_record.started_at is not None:
+                        # Type assertion: completed_at is not None since we just set it
+                        started_at = cast(datetime, evaluation_record.started_at)
+                        completed_at = cast(datetime, evaluation_record.completed_at)
+                        evaluation_record.duration_seconds = (
+                            completed_at - started_at
+                        ).total_seconds()
+                    
+                    with observability_service.trace_database_operation("update", "evaluations", evaluation_id=evaluation_record.id):
+                        await db.commit()
+                        await db.refresh(evaluation_record)
+                    
+                    add_span_attributes(
+                        evaluation_success=True,
+                        evaluation_id=evaluation_record.id,
+                        final_score=evaluation_record.score,
+                        duration_seconds=duration,
+                        total_cases=evaluation_record.total_cases,
+                        passed_cases=evaluation_record.passed_cases,
+                        failed_cases=evaluation_record.failed_cases
+                    )
+                    
+                    return {
+                        'evaluation_id': evaluation_record.id,
+                        'agent_id': agent_id,
+                        'evaluation_summary': summary,
+                        'detailed_results': details
+                    }
+                    
+                except Exception as e:
+                    # Update evaluation record with error
+                    evaluation_record.status = EvaluationStatus.FAILED
+                    evaluation_record.results = {'error': str(e)}
+                    evaluation_record.completed_at = datetime.utcnow()
+                    if evaluation_record.started_at is not None and evaluation_record.completed_at is not None:
+                        # Type assertion: both are guaranteed to be datetime objects here
+                        started_at = cast(datetime, evaluation_record.started_at)
+                        completed_at = cast(datetime, evaluation_record.completed_at)
+                        evaluation_record.duration_seconds = (
+                            completed_at - started_at
+                        ).total_seconds()
+                    
+                    await db.commit()
+                    record_exception(e)
+                    add_span_attributes(evaluation_success=False, failure_reason="evaluation_execution_error")
+                    raise
+                    
+            except Exception as e:
+                record_exception(e)
+                add_span_attributes(evaluation_success=False, failure_reason="setup_error")
+                raise
+    
+    async def _evaluate_agent_untraced(
+        self,
+        agent_id: int,
+        evaluation_dataset: Dataset,
+        user_id: int,
+        db: AsyncSession,
+        evaluation_name: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Fallback method for agent evaluation without tracing."""
         
         # Get agent from database
         agent = await self.agent_service.get_agent(db, agent_id, user_id)

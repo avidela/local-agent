@@ -11,6 +11,11 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...database import Session, Message, Agent, User, SessionStatus, MessageRole
+from ...observability import (
+    observability_service,
+    add_span_attributes,
+    record_exception
+)
 
 
 class SessionService:
@@ -37,6 +42,75 @@ class SessionService:
         Returns:
             Created Session instance or None if failed
         """
+        
+        tracer = observability_service.get_tracer()
+        if not tracer:
+            # Fallback to non-traced execution
+            return await self._create_session_untraced(db, user_id, agent_id, title, metadata)
+        
+        with tracer.start_as_current_span(
+            "session.create",
+            attributes={
+                "user_id": user_id,
+                "agent_id": agent_id,
+                "has_title": title is not None,
+                "has_metadata": metadata is not None
+            }
+        ) as span:
+            try:
+                # Verify agent exists and user has access
+                with observability_service.trace_database_operation("select", "agents", agent_id=agent_id):
+                    agent_query = select(Agent).where(
+                        and_(
+                            Agent.id == agent_id,
+                            Agent.is_active == True,
+                            (Agent.owner_id == user_id) | (Agent.is_public == True)
+                        )
+                    )
+                    agent_result = await db.execute(agent_query)
+                    agent = agent_result.scalar_one_or_none()
+                
+                if not agent:
+                    add_span_attributes(session_creation_success=False, failure_reason="agent_not_found")
+                    return None
+                
+                # Create session
+                session_id = str(uuid4())
+                session = Session(
+                    session_id=session_id,
+                    title=title or f"Chat with {agent.name}",
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    metadata=metadata or {},
+                )
+                
+                with observability_service.trace_database_operation("insert", "sessions", session_id=session_id):
+                    db.add(session)
+                    await db.commit()
+                    await db.refresh(session)
+                
+                add_span_attributes(
+                    session_creation_success=True,
+                    session_id=session_id,
+                    agent_name=agent.name
+                )
+                
+                return session
+                
+            except Exception as e:
+                record_exception(e)
+                add_span_attributes(session_creation_success=False, failure_reason="database_error")
+                raise
+    
+    async def _create_session_untraced(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        agent_id: int,
+        title: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Session]:
+        """Fallback method for session creation without tracing."""
         
         # Verify agent exists and user has access
         agent_query = select(Agent).where(
@@ -221,6 +295,95 @@ class SessionService:
         Returns:
             Created Message instance or None if failed
         """
+        
+        tracer = observability_service.get_tracer()
+        if not tracer:
+            # Fallback to non-traced execution
+            return await self._add_message_untraced(
+                db, session_id, role, content, attachments, cost, tokens,
+                tool_calls, tool_response, metadata
+            )
+        
+        with tracer.start_as_current_span(
+            "session.add_message",
+            attributes={
+                "session_id": session_id,
+                "message_role": role.value if hasattr(role, 'value') else str(role),
+                "has_attachments": bool(attachments),
+                "message_cost": cost,
+                "message_tokens": tokens,
+                "has_tool_calls": bool(tool_calls),
+                "has_tool_response": bool(tool_response),
+                "content_length": len(str(content))
+            }
+        ):
+            try:
+                # Get session by database ID
+                with observability_service.trace_database_operation("select", "sessions", session_id=session_id):
+                    session_query = select(Session).where(Session.session_id == session_id)
+                    session_result = await db.execute(session_query)
+                    session = session_result.scalar_one_or_none()
+                
+                if not session:
+                    add_span_attributes(message_creation_success=False, failure_reason="session_not_found")
+                    return None
+                
+                # Create message
+                message = Message(
+                    session_id=session.id,
+                    role=role,
+                    content=content,
+                    attachments=attachments or [],
+                    cost=cost,
+                    tokens=tokens,
+                    tool_calls=tool_calls,
+                    tool_response=tool_response,
+                    metadata=metadata or {},
+                )
+                
+                with observability_service.trace_database_operation("insert", "messages", message_role=str(role)):
+                    db.add(message)
+                    
+                    # Update session totals
+                    session.total_cost += cost
+                    session.total_tokens += tokens
+                    
+                    if role == MessageRole.USER:
+                        session.request_tokens += tokens
+                    elif role == MessageRole.ASSISTANT:
+                        session.response_tokens += tokens
+                    
+                    await db.commit()
+                    await db.refresh(message)
+                
+                add_span_attributes(
+                    message_creation_success=True,
+                    message_id=message.id,
+                    session_total_cost=session.total_cost,
+                    session_total_tokens=session.total_tokens
+                )
+                
+                return message
+                
+            except Exception as e:
+                record_exception(e)
+                add_span_attributes(message_creation_success=False, failure_reason="database_error")
+                raise
+    
+    async def _add_message_untraced(
+        self,
+        db: AsyncSession,
+        session_id: str,
+        role: MessageRole,
+        content: Dict[str, Any],
+        attachments: Optional[List[str]] = None,
+        cost: float = 0.0,
+        tokens: int = 0,
+        tool_calls: Optional[Dict[str, Any]] = None,
+        tool_response: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Message]:
+        """Fallback method for adding messages without tracing."""
         
         # Get session by database ID
         session_query = select(Session).where(Session.session_id == session_id)

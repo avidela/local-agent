@@ -46,7 +46,7 @@ class ModelProviderSettings(BaseSettings):
     google_location: str = Field(default="us-central1", description="Vertex AI location")
     
     # Default model settings
-    default_model: str = Field(default="openai:gpt-4o", description="Default model to use")
+    default_model: str = Field(default="google:gemini-2.0-flash-exp", description="Default model to use")
     default_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     default_max_tokens: Optional[int] = Field(default=None, ge=1)
 

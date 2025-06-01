@@ -7,10 +7,11 @@ from ...tools.registry import get_tool_registry, ToolRegistry
 from ...tools.base import BaseTool, ToolMetadata, ToolResult
 from ...tools.filesystem import (
     ReadFileTool, WriteFileTool, ListDirectoryTool, DeleteFileTool,
-    CopyFileTool, MoveFileTool, FileSearchTool, GrepFileTool, 
+    CopyFileTool, MoveFileTool, FileSearchTool, GrepFileTool,
     FindFilesTool, DiffFilesTool
 )
 from ...tools.builtin import CalculatorTool, WebSearchTool
+from ...observability import trace_tool_execution, add_span_attributes, record_exception
 
 
 class ToolService:
@@ -89,13 +90,44 @@ class ToolService:
         return self.registry.get_all_metadata(category=category)
     
     async def execute_tool(
-        self, 
-        tool_name: str, 
+        self,
+        tool_name: str,
         config: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> ToolResult:
-        """Execute a tool by name."""
-        return await self.registry.execute_tool(tool_name, config=config, **kwargs)
+        """Execute a tool by name with observability tracing."""
+        
+        # Extract operation name from kwargs or use generic
+        operation = kwargs.get('operation', 'execute')
+        
+        # Filter out 'operation' from kwargs to avoid duplicate parameter
+        filtered_kwargs = {k: v for k, v in kwargs.items()
+                          if isinstance(v, (str, int, float, bool)) and k != 'operation'}
+        
+        with trace_tool_execution(
+            tool_name=tool_name,
+            operation=operation,
+            config_keys=list(config.keys()) if config else [],
+            **filtered_kwargs
+        ):
+            try:
+                # Filter out 'operation' from kwargs for tool execution as well
+                tool_kwargs = {k: v for k, v in kwargs.items() if k != 'operation'}
+                result = await self.registry.execute_tool(tool_name, config=config, **tool_kwargs)
+                
+                # Add success metrics
+                add_span_attributes(
+                    tool_execution_success=True,
+                    tool_output_length=len(str(result.output)) if result.output else 0,
+                    has_debug_info=result.debug is not None
+                )
+                
+                return result
+                
+            except Exception as e:
+                record_exception(e)
+                add_span_attributes(tool_execution_success=False)
+                raise
     
     def register_custom_tool(self, tool: BaseTool) -> None:
         """Register a custom tool instance."""
@@ -194,6 +226,9 @@ class ToolService:
                     config = base_config.copy() if base_config else {}
                     if 'config' in kwargs:
                         config.update(kwargs.pop('config'))
+                    
+                    # Add operation context for tracing
+                    kwargs['operation'] = 'agent_call'
                     
                     result = await self.execute_tool(tool_name_inner, config=config, **kwargs)
                     
