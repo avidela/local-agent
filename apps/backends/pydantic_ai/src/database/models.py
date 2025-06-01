@@ -28,7 +28,7 @@ class User(Base):
     
     username: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
     email: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[Optional[str]] = mapped_column(String(100))
     role: Mapped[UserRole] = mapped_column(String(20), default=UserRole.USER, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

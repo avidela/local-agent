@@ -64,6 +64,32 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    """User registration request schema."""
+    username: str = Field(..., min_length=3, max_length=50)
+    email: str = Field(..., description="Valid email address")
+    password: str = Field(..., min_length=8, max_length=100)
+    full_name: Optional[str] = Field(None, max_length=100)
+
+
+class ChangePasswordRequest(BaseModel):
+    """Change password request schema."""
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=100)
+
+
+class ResetPasswordRequest(BaseModel):
+    """Reset password request schema."""
+    username: str
+    new_password: str = Field(..., min_length=8, max_length=100)
+
+
+class UserManagementResponse(BaseModel):
+    """User management response schema."""
+    message: str
+    user_id: int
+
+
 # Tool and Model configuration schemas
 class ToolConfig(BaseModel):
     """Tool configuration schema as documented in pydantic_ai_agents.md"""
