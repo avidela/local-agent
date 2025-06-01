@@ -213,11 +213,22 @@ async def get_db() -> AsyncSession:
     async with async_session_maker() as session:
         yield session
 
-async def init_db():
-    from ..models.base import BaseModel
-    async with engine.begin() as conn:
-        from ..models import *
-        await conn.run_sync(BaseModel.metadata.create_all)
+async def init_db() -> None:
+    """Initialize database using Alembic migrations"""
+    from alembic.config import Config
+    from alembic import command
+    import asyncio
+    
+    def run_migrations():
+        """Run Alembic migrations in sync context"""
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+    
+    # Run migrations in executor to avoid blocking
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, run_migrations)
+    
+    print("Database migrations completed successfully")
 ```
 
 ## 🔐 Phase 2: Authentication & API (Days 4-6)

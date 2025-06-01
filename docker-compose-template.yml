@@ -13,6 +13,19 @@ services:
       GOOGLE_CLOUD_PROJECT: ds-staff-gen-ai-prd-955b
       GOOGLE_CLOUD_LOCATION: us-central1
 
+  pydantic-ai-backend:
+    extends:
+      file: docker-compose-pydantic-ai.yml
+      service: pydantic-ai-backend
+    volumes:
+      - /home/user/repos:/repos #Update this to mount your local directories
+    environment:
+      # Override with your actual API keys
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
+      GOOGLE_APPLICATION_CREDENTIALS: "${GOOGLE_APPLICATION_CREDENTIALS}"
+      GOOGLE_PROJECT_ID: "${GOOGLE_PROJECT_ID}"
+
   streamlit-frontend:
     extends:
       file: docker-compose-streamlit.yml

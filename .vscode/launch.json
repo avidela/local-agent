@@ -38,6 +38,24 @@
                 "ADK_BACKEND_URL": "http://localhost:8001"
             },
             "jinja": true
+        },
+        {
+            "name": "Python Debugger: PydanticAI FastAPI",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "apps.backends.pydantic_ai.src.main:app",
+                "--reload",
+                "--port",
+                "8003"
+            ],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "DATABASE_URL": "postgresql+asyncpg://pydantic_ai_user:pydantic_ai_password@localhost:5434/pydantic_ai_db",
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "jinja": true
         }
     ]
 }

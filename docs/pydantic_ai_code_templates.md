@@ -767,6 +767,8 @@ async def test_engine():
         echo=True
     )
     
+    # For testing with in-memory SQLite, we can use create_all
+    # since we don't need migration versioning in tests
     async with engine.begin() as conn:
         await conn.run_sync(BaseModel.metadata.create_all)
     

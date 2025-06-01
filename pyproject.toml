@@ -12,4 +12,5 @@ dependencies = [
 members = [
     "apps/frontends/streamlit",
     "apps/backends/adk",
+    "apps/backends/pydantic_ai"
 ]
