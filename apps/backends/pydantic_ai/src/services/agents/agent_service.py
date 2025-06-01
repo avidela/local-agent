@@ -9,6 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...config import settings
 from ...database import Agent, User, ModelProvider
 from ...api.schemas import ToolConfig
+from ...api.exceptions import (
+    AgentNotFoundException, ModelNotAvailableException,
+    AuthorizationException, BusinessLogicException,
+    ExternalServiceException, ConfigurationException, ValidationException
+)
 from ..models import model_provider_service
 from ..tools.tool_service import get_tool_service
 
@@ -62,7 +67,10 @@ class AgentService:
         provider_value = model_provider.value if hasattr(model_provider, 'value') else model_provider
         full_model_name = f"{provider_value}:{model_name}"
         if not model_provider_service.is_model_available(full_model_name):
-            raise ValueError(f"Model {full_model_name} is not available")
+            raise ModelNotAvailableException(
+                model_name=full_model_name,
+                provider=provider_value
+            )
         
         # Convert ToolConfig objects to dictionaries for database storage
         tool_dicts = []
@@ -191,8 +199,12 @@ class AgentService:
         
         # Get agent with ownership validation
         agent = await self.get_agent(db, agent_id, user_id)
-        if not agent or agent.owner_id != user_id:
-            return None
+        if not agent:
+            raise AgentNotFoundException(agent_id=agent_id)
+        if agent.owner_id != user_id:
+            raise AuthorizationException(
+                message="You do not have permission to update this agent"
+            )
         
         # Update allowed fields
         allowed_fields = {
@@ -228,8 +240,12 @@ class AgentService:
         """
         
         agent = await self.get_agent(db, agent_id, user_id)
-        if not agent or agent.owner_id != user_id:
-            return False
+        if not agent:
+            raise AgentNotFoundException(agent_id=agent_id)
+        if agent.owner_id != user_id:
+            raise AuthorizationException(
+                message="You do not have permission to delete this agent"
+            )
         
         agent.is_active = False
         
@@ -348,7 +364,10 @@ class AgentService:
         
         pydantic_agent = self.get_instantiated_agent(agent)
         if not pydantic_agent:
-            return None
+            raise BusinessLogicException(
+                message=f"Failed to instantiate agent {agent.id}",
+                operation="agent_instantiation"
+            )
         
         try:
             # Use official PydanticAI agent.run() API
@@ -374,8 +393,10 @@ class AgentService:
             return result
             
         except Exception as e:
-            print(f"Error running agent {agent.id}: {e}")
-            return None
+            raise ExternalServiceException(
+                service_name="PydanticAI",
+                error_message=f"Agent {agent.id} execution failed: {str(e)}"
+            )
     
     async def stream_agent(
         self,
@@ -401,7 +422,10 @@ class AgentService:
         
         pydantic_agent = self.get_instantiated_agent(agent)
         if not pydantic_agent:
-            return None
+            raise BusinessLogicException(
+                message=f"Failed to instantiate agent {agent.id} for streaming",
+                operation="agent_stream_instantiation"
+            )
         
         try:
             # Use official PydanticAI agent.run_stream() API
@@ -428,8 +452,10 @@ class AgentService:
             return stream_context
             
         except Exception as e:
-            print(f"Error streaming agent {agent.id}: {e}")
-            return None
+            raise ExternalServiceException(
+                service_name="PydanticAI",
+                error_message=f"Agent {agent.id} streaming failed: {str(e)}"
+            )
     
     def clear_agent_cache(self, agent_id: Optional[int] = None) -> None:
         """

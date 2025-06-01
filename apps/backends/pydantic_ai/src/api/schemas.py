@@ -6,9 +6,14 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 from ..database.models import ModelProvider, SessionStatus, MessageRole, UserRole, EvaluationStatus, WorkflowStatus
+from .validators import (
+    validate_email, validate_password_strength, validate_tool_name,
+    validate_tool_config, validate_system_prompt, validate_model_name,
+    validate_session_id, validate_workflow_config, validate_evaluation_config
+)
 
 
 # Base schemas
@@ -25,11 +30,27 @@ class UserBase(BaseModel):
     email: str = Field(..., description="Valid email address")
     full_name: Optional[str] = Field(None, max_length=100)
     role: UserRole = Field(default=UserRole.USER)
+    
+    @validator('email')
+    def validate_email_format(cls, v):
+        return validate_email(v)
+    
+    @validator('username')
+    def validate_username(cls, v):
+        if not v.replace('_', '').replace('-', '').isalnum():
+            raise ValueError('Username can only contain letters, numbers, underscores, and hyphens')
+        if v.lower() in ['admin', 'root', 'system', 'api', 'user', 'test']:
+            raise ValueError('Username is reserved and cannot be used')
+        return v.lower()
 
 
 class UserCreate(UserBase):
     """Schema for creating a user."""
     password: str = Field(..., min_length=8, max_length=100)
+    
+    @validator('password')
+    def validate_password_security(cls, v):
+        return validate_password_strength(v)
 
 
 class UserUpdate(BaseModel):
@@ -70,12 +91,32 @@ class RegisterRequest(BaseModel):
     email: str = Field(..., description="Valid email address")
     password: str = Field(..., min_length=8, max_length=100)
     full_name: Optional[str] = Field(None, max_length=100)
+    
+    @validator('email')
+    def validate_email_format(cls, v):
+        return validate_email(v)
+    
+    @validator('password')
+    def validate_password_security(cls, v):
+        return validate_password_strength(v)
+    
+    @validator('username')
+    def validate_username(cls, v):
+        if not v.replace('_', '').replace('-', '').isalnum():
+            raise ValueError('Username can only contain letters, numbers, underscores, and hyphens')
+        if v.lower() in ['admin', 'root', 'system', 'api', 'user', 'test']:
+            raise ValueError('Username is reserved and cannot be used')
+        return v.lower()
 
 
 class ChangePasswordRequest(BaseModel):
     """Change password request schema."""
     current_password: str
     new_password: str = Field(..., min_length=8, max_length=100)
+    
+    @validator('new_password')
+    def validate_new_password_security(cls, v):
+        return validate_password_strength(v)
 
 
 class ResetPasswordRequest(BaseModel):
@@ -97,6 +138,14 @@ class ToolConfig(BaseModel):
     enabled: bool = Field(default=True, description="Whether the tool is enabled")
     plain: bool = Field(default=False, description="Use @agent.tool_plain vs @agent.tool")
     config: Dict[str, Any] = Field(default_factory=dict, description="Tool-specific configuration")
+    
+    @validator('name')
+    def validate_tool_name_format(cls, v):
+        return validate_tool_name(v)
+    
+    @validator('config')
+    def validate_tool_configuration(cls, v):
+        return validate_tool_config(v)
 
 
 class ModelConfig(BaseModel):
@@ -123,6 +172,26 @@ class AgentBase(BaseModel):
     output_type: Optional[str] = Field(None, max_length=100)
     retries: int = Field(default=2, ge=0, le=10)
     is_public: bool = Field(default=False)
+    
+    @validator('system_prompt')
+    def validate_system_prompt_safety(cls, v):
+        return validate_system_prompt(v)
+    
+    @validator('model_name')
+    def validate_model_name_format(cls, v, values):
+        provider = values.get('model_provider')
+        if provider:
+            return validate_model_name(v, provider)
+        return v
+    
+    @validator('name')
+    def validate_agent_name(cls, v):
+        if not v.strip():
+            raise ValueError('Agent name cannot be empty')
+        # Remove any potential malicious characters
+        if any(char in v for char in ['<', '>', '"', "'", '&']):
+            raise ValueError('Agent name contains invalid characters')
+        return v.strip()
 
 
 class AgentCreate(AgentBase):

@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .database import init_db, close_db
 from .observability import setup_observability
+from .api.middleware.error_handler import setup_exception_handlers, request_id_middleware
 from .api import (
     agents_router, sessions_router, auth_router, health_router,
     evaluations_router, workflows_router, tools_router, websocket_router
@@ -49,6 +50,13 @@ app = FastAPI(
 # Setup observability BEFORE adding other middleware or starting the app
 setup_observability(app)
 print("Observability configured")
+
+# Setup global exception handlers
+setup_exception_handlers(app)
+print("Exception handlers configured")
+
+# Add request ID middleware
+app.middleware("http")(request_id_middleware)
 
 # Add CORS middleware
 app.add_middleware(
