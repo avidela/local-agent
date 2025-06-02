@@ -90,6 +90,7 @@ def upgrade() -> None:
     sa.Column('full_name', sa.String(200), nullable=True),
     sa.Column('role', sa.Text(), nullable=False, server_default='user'),
     sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
+    sa.Column('last_login', sa.DateTime(timezone=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),

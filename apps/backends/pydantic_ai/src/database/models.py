@@ -134,8 +134,14 @@ class Message(Base):
     content: Mapped[Dict[str, Any]] = mapped_column(JSONB, nullable=False)
     role: Mapped[MessageRole] = mapped_column(String(20), nullable=False)
     
-    # Multimodal content references
-    attachments: Mapped[List[str]] = mapped_column(JSONB, default=list)  # File IDs
+    # Legacy field for compatibility (can be removed later)
+    attachments: Mapped[List[str]] = mapped_column(JSONB, default=list)
+    
+    # Multimodal content URLs (no file storage needed)
+    image_urls: Mapped[List[str]] = mapped_column(JSONB, default=list)
+    document_urls: Mapped[List[str]] = mapped_column(JSONB, default=list)
+    audio_urls: Mapped[List[str]] = mapped_column(JSONB, default=list)
+    video_urls: Mapped[List[str]] = mapped_column(JSONB, default=list)
     
     # Cost tracking for this message
     cost: Mapped[float] = mapped_column(Float, default=0.0)
@@ -151,35 +157,6 @@ class Message(Base):
     # Relationships
     session_id: Mapped[int] = mapped_column(ForeignKey("sessions.id"), nullable=False)
     session: Mapped[Session] = relationship("Session", back_populates="messages")
-
-
-class FileType(str, Enum):
-    """Supported file types for multimodal content."""
-    IMAGE = "image"
-    AUDIO = "audio"
-    VIDEO = "video"
-    DOCUMENT = "document"
-
-
-class File(Base):
-    """File storage for multimodal content."""
-    
-    __tablename__ = "files"
-    
-    filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    file_type: Mapped[FileType] = mapped_column(String(20), nullable=False)
-    mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    file_size: Mapped[int] = mapped_column(Integer, nullable=False)
-    file_path: Mapped[str] = mapped_column(String(500), nullable=False)
-    
-    # File processing metadata
-    processed: Mapped[bool] = mapped_column(Boolean, default=False)
-    processing_metadata: Mapped[Dict[str, Any]] = mapped_column(JSONB, default=dict)
-    
-    # Relationships
-    uploaded_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    uploader: Mapped[User] = relationship("User")
 
 
 class EvaluationStatus(str, Enum):

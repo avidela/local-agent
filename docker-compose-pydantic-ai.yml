@@ -17,18 +17,11 @@ services:
       DATABASE_ECHO: "false"
       DATABASE_POOL_SIZE: 20
       DATABASE_MAX_OVERFLOW: 0
-      GOOGLE_GENAI_USE_VERTEXAI: "TRUE"
-      GOOGLE_CLOUD_PROJECT: ds-staff-gen-ai-prd-955b
-      GOOGLE_CLOUD_LOCATION: us-central1
-      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
       MODEL_DEFAULT_MODEL: "google:gemini-2.0-flash-exp"
       MODEL_DEFAULT_TEMPERATURE: 0.7
       AUTH_SECRET_KEY: "dev-secret-key-change-in-production"
       AUTH_ALGORITHM: "HS256"
       AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      AUTH_ADMIN_USERNAME: "admin"
-      AUTH_ADMIN_PASSWORD: "admin"
       OBSERVABILITY_LOGFIRE_SERVICE_NAME: "pydantic-ai-agents"
       OBSERVABILITY_LOGFIRE_ENVIRONMENT: "development"
       OBSERVABILITY_ENABLE_TRACING: "true"
@@ -39,6 +32,7 @@ services:
       RATE_LIMIT_REQUESTS: 100
       RATE_LIMIT_WINDOW: 60
     env_file:
+      - .env
       - ./apps/backends/pydantic_ai/.env
     ports:
       - "8002:8000"  # Map to 8002 to avoid conflict with other services
@@ -47,16 +41,9 @@ services:
         condition: service_healthy
     volumes:
       - ./apps/backends/pydantic_ai:/app  # Mount source for development
-      - /home/user/repos:/repos  # Mount repos directory for access
       - type: bind
         source: ${APPDATA:-~/.config}/gcloud
         target: /root/.config/gcloud
         read_only: true
     networks:
       - default
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s

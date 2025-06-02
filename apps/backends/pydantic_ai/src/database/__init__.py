@@ -8,7 +8,6 @@ from .models import (
     Agent, ModelProvider,
     Session, SessionStatus,
     Message, MessageRole,
-    File, FileType,
     Evaluation, EvaluationStatus,
     Workflow, WorkflowStatus, WorkflowExecution,
 )
@@ -37,9 +36,6 @@ __all__ = [
     "Message", 
     "MessageRole",
     
-    # File models
-    "File",
-    "FileType",
     
     # Evaluation models
     "Evaluation",

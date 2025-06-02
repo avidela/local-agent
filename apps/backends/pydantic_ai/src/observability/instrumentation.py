@@ -430,6 +430,35 @@ class ObservabilityService:
             attributes=attributes
         )
     
+    def trace_multimodal_operation(self, operation: str, **kwargs):
+        """
+        Create a span for multimodal file operations.
+        
+        Args:
+            operation: Operation being performed (upload_file, process_file, etc.)
+            **kwargs: Additional attributes (filename, content_type, file_id, etc.)
+            
+        Returns:
+            Span context manager
+        """
+        
+        if not self.tracer:
+            return nullcontext()
+        
+        attributes = {
+            "multimodal.operation": operation,
+        }
+        
+        # Add operation-specific attributes
+        for key, value in kwargs.items():
+            if value is not None:
+                attributes[f"multimodal.{key}"] = str(value)
+        
+        return self.tracer.start_as_current_span(
+            f"multimodal.{operation}",
+            attributes=attributes
+        )
+    
     def add_span_attributes(self, **attributes) -> None:
         """
         Add attributes to the current span.
@@ -527,6 +556,11 @@ def setup_observability(app=None) -> None:
             print("Logfire not available for FastAPI instrumentation")
         except Exception as e:
             print(f"Failed to instrument FastAPI: {e}")
+
+
+def trace_multimodal_operation(operation: str, **kwargs):
+    """Get multimodal operation tracer."""
+    return observability.trace_multimodal_operation(operation, **kwargs)
 
 
 def get_tracer() -> Optional[trace.Tracer]:

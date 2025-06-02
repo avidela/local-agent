@@ -276,7 +276,13 @@ async def stream_agent_response(
         stream_context = await agent_service.stream_agent(
             agent=agent,
             prompt=run_request.prompt,
-            **run_kwargs
+            image_urls=run_request.image_urls,
+            document_urls=run_request.document_urls,
+            audio_urls=run_request.audio_urls,
+            video_urls=run_request.video_urls,
+            db=db,
+            user_id=run_kwargs.get('user_id'),
+            **{k: v for k, v in run_kwargs.items() if k not in ['user_id']}
         )
         
         if not stream_context:
@@ -641,6 +647,7 @@ async def run_agent(
                         run_request=run_request,
                         session_id=str(session_id),
                         db=db,
+                        user_id=user_id,  # Add user_id for file access
                         **run_kwargs
                     ),
                     media_type="text/event-stream",
@@ -656,6 +663,12 @@ async def run_agent(
                 result = await agent_service.run_agent(
                     agent=agent,
                     prompt=run_request.prompt,
+                    image_urls=run_request.image_urls,
+                    document_urls=run_request.document_urls,
+                    audio_urls=run_request.audio_urls,
+                    video_urls=run_request.video_urls,
+                    db=db,
+                    user_id=user_id,
                     **run_kwargs
                 )
             

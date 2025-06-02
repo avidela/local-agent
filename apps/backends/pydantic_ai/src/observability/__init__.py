@@ -12,6 +12,7 @@ from .instrumentation import (
     trace_database_operation,
     trace_workflow_execution,
     trace_tool_execution,
+    trace_multimodal_operation,
     add_span_attributes,
     add_span_event,
     record_exception,

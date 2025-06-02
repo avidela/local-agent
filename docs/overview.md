@@ -40,9 +40,9 @@ This modular approach allows each component to have its own dependencies while m
 ├── .env
 ├── apps/
 │   ├── backends/
-│   │   ├── adk/                # Main ADK backend implementation
-│   │   ├── langraph/           # Placeholder for future LangGraph implementation
-│   │   └── pydantic_ai/        # Placeholder for future PydanticAI implementation
+│   │   ├── pydantic_ai/    # Placeholder for future PydanticAI implementation               
+│   │   ├── langraph/       # Placeholder for future LangGraph implementation
+│   │   └── adk/            # Main ADK backend implementation
 │   │       ├── Dockerfile
 │   │       ├── api.py
 │   │       ├── .dockerignore

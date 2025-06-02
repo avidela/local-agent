@@ -12,6 +12,8 @@ import sqlalchemy as sa
 from sqlalchemy.sql import table, column
 from sqlalchemy import String, Boolean, DateTime
 from datetime import datetime
+from passlib.context import CryptContext
+import os
 
 # revision identifiers, used by Alembic.
 revision: str = '002_seed_demo_user'
@@ -30,9 +32,23 @@ def upgrade() -> None:
         column('full_name', String),
         column('role', String),
         column('is_active', Boolean),
+        column('last_login', DateTime),
         column('created_at', DateTime),
         column('updated_at', DateTime),
     )
+    
+    # Create password context for hashing
+    pwd_context = CryptContext(
+        schemes=["argon2"],
+        deprecated="auto",
+        argon2__memory_cost=65536,  # 64 MB
+        argon2__time_cost=3,        # 3 iterations
+        argon2__parallelism=2       # 2 threads
+    )
+    
+    # Get demo user password from environment variable
+    demo_password = os.getenv("DEMO_USER_PASSWORD", "demo")
+    demo_password_hash = pwd_context.hash(demo_password)
     
     # Insert demo user
     now = datetime.utcnow()
@@ -41,10 +57,11 @@ def upgrade() -> None:
             'id': 1,
             'username': 'demo',
             'email': 'demo@example.com',
-            'password_hash': 'demo_hash_placeholder',  # In production, use proper hashing
+            'password_hash': demo_password_hash,
             'full_name': 'Demo User',
             'role': 'admin',
             'is_active': True,
+            'last_login': None,
             'created_at': now,
             'updated_at': now,
         }

@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional, Union
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pydantic_ai import ImageUrl, DocumentUrl, AudioUrl, VideoUrl
+
 from ...config import settings
 from ...database import Agent, User, ModelProvider
 from ...api.schemas import ToolConfig
@@ -20,8 +22,6 @@ from ...observability import (
 )
 from ..models import model_provider_service
 from ..tools.tool_service import get_tool_service
-
-
 class AgentService:
     """Service for managing dynamic PydanticAI agents."""
     
@@ -370,6 +370,11 @@ class AgentService:
         prompt: str,
         message_history: Optional[List[Any]] = None,
         deps: Optional[Any] = None,
+        image_urls: Optional[List[str]] = None,
+        document_urls: Optional[List[str]] = None,
+        audio_urls: Optional[List[str]] = None,
+        video_urls: Optional[List[str]] = None,
+        db: Optional[AsyncSession] = None,
         **kwargs
     ) -> Optional[Any]:
         """
@@ -377,9 +382,14 @@ class AgentService:
         
         Args:
             agent: Database Agent record
-            prompt: User prompt
+            prompt: User prompt or multimodal content
             message_history: Previous conversation messages
             deps: Dependencies for agent execution
+            image_urls: List of image URLs to include as multimodal content
+            document_urls: List of document URLs to include as multimodal content
+            audio_urls: List of audio URLs to include as multimodal content
+            video_urls: List of video URLs to include as multimodal content
+            db: Database session for message storage
             **kwargs: Additional arguments for agent.run()
             
         Returns:
@@ -407,9 +417,39 @@ class AgentService:
                         operation="agent_instantiation"
                     )
                 
+                # Process multimodal content from URLs
+                message_parts: List[Any] = [prompt]
+                if any([image_urls, document_urls, audio_urls, video_urls]):
+                    try:
+                        # Create multimodal message parts using PydanticAI official types
+                        if image_urls:
+                            message_parts.extend([ImageUrl(url=url) for url in image_urls])
+                        if document_urls:
+                            message_parts.extend([DocumentUrl(url=url) for url in document_urls])
+                        if audio_urls:
+                            message_parts.extend([AudioUrl(url=url) for url in audio_urls])
+                        if video_urls:
+                            message_parts.extend([VideoUrl(url=url) for url in video_urls])
+                        
+                        add_span_attributes(
+                            has_multimodal_content=True,
+                            image_count=len(image_urls or []),
+                            document_count=len(document_urls or []),
+                            audio_count=len(audio_urls or []),
+                            video_count=len(video_urls or [])
+                        )
+                    except Exception as e:
+                        print(f"Warning: Failed to process multimodal content: {e}")
+                        # Fall back to text-only prompt
+                        message_parts = [prompt]
+                        add_span_attributes(
+                            has_multimodal_content=False,
+                            multimodal_error=str(e)
+                        )
+                
                 # Use official PydanticAI agent.run() API
                 run_kwargs: Dict[str, Any] = {
-                    "user_prompt": prompt,
+                    "user_prompt": message_parts,
                 }
                 
                 if message_history:
@@ -452,6 +492,11 @@ class AgentService:
         prompt: str,
         message_history: Optional[List[Any]] = None,
         deps: Optional[Any] = None,
+        image_urls: Optional[List[str]] = None,
+        document_urls: Optional[List[str]] = None,
+        audio_urls: Optional[List[str]] = None,
+        video_urls: Optional[List[str]] = None,
+        db: Optional[AsyncSession] = None,
         **kwargs
     ) -> Optional[Any]:
         """
@@ -459,9 +504,14 @@ class AgentService:
         
         Args:
             agent: Database Agent record
-            prompt: User prompt
+            prompt: User prompt or multimodal content
             message_history: Previous conversation messages
             deps: Dependencies for agent execution
+            image_urls: List of image URLs to include as multimodal content
+            document_urls: List of document URLs to include as multimodal content
+            audio_urls: List of audio URLs to include as multimodal content
+            video_urls: List of video URLs to include as multimodal content
+            db: Database session for message storage
             **kwargs: Additional arguments for agent.run_stream()
             
         Returns:
@@ -476,9 +526,27 @@ class AgentService:
             )
         
         try:
+            # Process multimodal content from URLs
+            message_parts: List[Any] = [prompt]
+            if any([image_urls, document_urls, audio_urls, video_urls]):
+                try:
+                    # Create multimodal message parts using PydanticAI official types
+                    if image_urls:
+                        message_parts.extend([ImageUrl(url=url) for url in image_urls])
+                    if document_urls:
+                        message_parts.extend([DocumentUrl(url=url) for url in document_urls])
+                    if audio_urls:
+                        message_parts.extend([AudioUrl(url=url) for url in audio_urls])
+                    if video_urls:
+                        message_parts.extend([VideoUrl(url=url) for url in video_urls])
+                except Exception as e:
+                    print(f"Warning: Failed to process multimodal content for streaming: {e}")
+                    # Fall back to text-only prompt
+                    message_parts = [prompt]
+            
             # Use official PydanticAI agent.run_stream() API
             run_kwargs: Dict[str, Any] = {
-                "user_prompt": prompt,
+                "user_prompt": message_parts,
             }
             
             if message_history:
@@ -487,8 +555,8 @@ class AgentService:
             if deps:
                 run_kwargs["deps"] = deps
             
-            # Add any additional kwargs
-            run_kwargs.update(kwargs)
+            # Add any additional kwargs (excluding user_id which is not a PydanticAI param)
+            run_kwargs.update({k: v for k, v in kwargs.items() if k not in ['user_id']})
             
             # Import here to avoid dependency issues during development
             # PydanticAI run_stream returns a context manager, not a direct async generator

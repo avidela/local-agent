@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 
 from ..database.models import ModelProvider, SessionStatus, MessageRole, UserRole, EvaluationStatus, WorkflowStatus
 from .validators import (
@@ -266,7 +266,10 @@ class MessageCreate(BaseModel):
     """Schema for creating a message."""
     content: Dict[str, Any]
     role: MessageRole
-    attachments: List[str] = Field(default_factory=list)
+    image_urls: List[str] = Field(default_factory=list)
+    document_urls: List[str] = Field(default_factory=list)
+    audio_urls: List[str] = Field(default_factory=list)
+    video_urls: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -298,6 +301,11 @@ class AgentRunRequest(BaseModel):
     temperature_override: Optional[float] = Field(None, ge=0.0, le=2.0)
     max_tokens_override: Optional[int] = Field(None, gt=0)
     stream: bool = Field(default=False)
+    # Multimodal support - URL-based (no file storage needed)
+    image_urls: Optional[List[str]] = Field(default_factory=list, description="List of image URLs to include")
+    document_urls: Optional[List[str]] = Field(default_factory=list, description="List of document URLs to include")
+    audio_urls: Optional[List[str]] = Field(default_factory=list, description="List of audio URLs to include")
+    video_urls: Optional[List[str]] = Field(default_factory=list, description="List of video URLs to include")
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 

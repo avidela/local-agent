@@ -19,7 +19,13 @@ class JWTService:
     
     def __init__(self):
         """Initialize JWT service with password context."""
-        self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        self.pwd_context = CryptContext(
+            schemes=["argon2"],
+            deprecated="auto",
+            argon2__memory_cost=65536,  # 64 MB
+            argon2__time_cost=3,        # 3 iterations
+            argon2__parallelism=2       # 2 threads
+        )
     
     def create_access_token(
         self, 
@@ -77,7 +83,7 @@ class JWTService:
     
     def hash_password(self, password: str) -> str:
         """
-        Hash a password using bcrypt.
+        Hash a password using argon2.
         
         Args:
             password: Plain text password
