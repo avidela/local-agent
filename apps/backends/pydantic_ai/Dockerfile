@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for PydanticAI Agents Service
-FROM python:3.11-slim as base
+FROM python:3.11-slim AS base
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
 RUN pip install uv
 
 # Development stage
-FROM base as development
+FROM base AS development
 
 WORKDIR /app
 
@@ -42,7 +42,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 CMD ["uv", "run", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 # Production stage
-FROM base as production
+FROM base AS production
 
 WORKDIR /app
 
